@@ -5,9 +5,9 @@ import { BottomNav } from './components/BottomNav';
 import { SummaryCard } from './components/SummaryCard';
 import { AssetRow } from './components/AssetRow';
 import { TransactionModal } from './components/TransactionModal';
-import { SettingsModal } from './components/SettingsModal';
 import { LoginPage } from './components/LoginPage';
 import { AdminPanel } from './components/AdminPanel';
+import { SettingsDrawer, ThemeOption } from './components/SettingsDrawer';
 import { Transaction, PriceData, PortfolioSummary, ASSET_DETAILS, AssetSummary } from './types';
 import { API } from './services/api';
 import * as PriceService from './services/priceService';
@@ -25,18 +25,45 @@ export default function App() {
   const [sources, setSources] = useState<{title: string, uri: string}[]>([]);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const [displayName, setDisplayName] = useState('');
+  const [theme, setTheme] = useState<ThemeOption>(() => {
     if (typeof window === 'undefined') return 'light';
-    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+    const stored = localStorage.getItem('theme') as ThemeOption | null;
+    return stored || 'system';
   });
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
-    document.body.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem('theme', theme);
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = () => {
+      const nextTheme = theme === 'system' ? (mediaQuery.matches ? 'dark' : 'light') : theme;
+      setResolvedTheme(nextTheme);
+      document.body.classList.toggle('dark', nextTheme === 'dark');
+      localStorage.setItem('theme', theme);
+    };
+
+    applyTheme();
+
+    if (theme === 'system') {
+      mediaQuery.addEventListener('change', applyTheme);
+      return () => mediaQuery.removeEventListener('change', applyTheme);
+    }
   }, [theme]);
+
+  useEffect(() => {
+    if (!user) {
+      setDisplayName('');
+      return;
+    }
+
+    const storedName = localStorage.getItem(`displayName:${user.username}`);
+    setDisplayName(storedName || user.username);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -56,6 +83,13 @@ export default function App() {
     setPrices(result.data);
     setSources(result.sources);
     setIsAiLoading(false);
+  };
+
+  const handleDisplayNameChange = (name: string) => {
+    setDisplayName(name);
+    if (user) {
+      localStorage.setItem(`displayName:${user.username}`, name);
+    }
   };
 
   const handleSaveTransaction = async (t: Transaction) => {
@@ -133,21 +167,22 @@ export default function App() {
   if (!user) return <LoginPage onLoginSuccess={setUser} />;
 
   const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(searchQuery) || a.symbol.includes(searchQuery.toUpperCase()));
-  const isDark = theme === 'dark';
+  const isDark = resolvedTheme === 'dark';
   const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
   const mutedText = 'text-[color:var(--text-muted)]';
   const pillTone = 'bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]';
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'];
+  const themeLabel = theme === 'system' ? 'هماهنگ با سیستم' : isDark ? 'تم تیره' : 'تم روشن';
 
   return (
-    <Layout theme={theme}>
+    <Layout theme={resolvedTheme}>
       <button
-        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        onClick={() => setIsSettingsDrawerOpen(true)}
         className="fixed top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 rounded-full border border-[color:var(--border-color)] bg-[var(--card-bg)] text-[color:var(--text-primary)] shadow-md active:scale-95 transition-all"
-        aria-label="تغییر تم"
+        aria-label="تنظیمات و تم"
       >
         {isDark ? <Sun size={16} /> : <Moon size={16} />}
-        <span className="text-[11px] font-bold">{isDark ? 'تم روشن' : 'تم تیره'}</span>
+        <span className="text-[11px] font-bold">{themeLabel}</span>
       </button>
       {tab === 'overview' && (
         <div className="p-4 space-y-4 animate-in fade-in duration-500 pb-20">
@@ -157,11 +192,18 @@ export default function App() {
                    <Shield size={16} className="text-white" />
                 </div>
                 <div>
-                   <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">پنل مدیریت</span>
+                   <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">{displayName || 'پنل مدیریت'}</span>
                    <span className="text-[10px] text-blue-600 font-bold uppercase">{user.username}</span>
                 </div>
              </div>
              <div className="flex items-center gap-2">
+               <button
+                 onClick={() => setIsSettingsDrawerOpen(true)}
+                 className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
+                 aria-label="تنظیمات حساب"
+               >
+                 <UserCircle size={18} />
+               </button>
                 {user.isAdmin && (
                   <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}>
                     <UserCircle size={18} />
@@ -256,7 +298,7 @@ export default function App() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsSettingsModalOpen(true)} className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]"><Settings size={18} /></button>
+              <button onClick={() => setIsSettingsDrawerOpen(true)} className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]" aria-label="تنظیمات"><Settings size={18} /></button>
               <button onClick={() => setUser(null)} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
             </div>
           </div>
@@ -280,7 +322,14 @@ export default function App() {
       <BottomNav currentTab={tab} onTabChange={setTab} />
       <button onClick={() => { setEditingTransaction(null); setIsTxModalOpen(true); }} className="fixed bottom-24 left-6 bg-blue-600 text-white rounded-[20px] p-5 shadow-2xl z-50"><Plus size={28} strokeWidth={3} /></button>
       <TransactionModal isOpen={isTxModalOpen} initialData={editingTransaction} onClose={() => setIsTxModalOpen(false)} onSave={handleSaveTransaction} onDelete={handleDeleteTransaction} />
-      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+      <SettingsDrawer
+        isOpen={isSettingsDrawerOpen}
+        onClose={() => setIsSettingsDrawerOpen(false)}
+        displayName={displayName || user.username}
+        onDisplayNameChange={handleDisplayNameChange}
+        theme={theme}
+        onThemeChange={setTheme}
+      />
       {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
     </Layout>
   );
