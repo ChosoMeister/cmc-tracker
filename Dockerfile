@@ -4,18 +4,29 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 
 # Copy source and build
 COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:1.27-alpine AS runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Replace default config to support SPA routing
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Install only production dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev --legacy-peer-deps
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Copy compiled assets and server files
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/services ./services
+COPY --from=builder /app/utils ./utils
+
+# Ensure data directory exists for persistence mounts
+RUN mkdir -p /app/data
+
+EXPOSE 8080
+CMD ["node", "server.js"]
