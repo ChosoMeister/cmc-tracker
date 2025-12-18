@@ -3,7 +3,11 @@ import { GoogleGenAI } from "@google/genai";
 import { PriceData } from '../types';
 import { API } from './api';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// ایمن‌سازی کلید API
+const getAIClient = () => {
+  const apiKey = typeof process !== 'undefined' && process.env.API_KEY ? process.env.API_KEY : '';
+  return new GoogleGenAI({ apiKey });
+};
 
 const DEFAULT_PRICES: PriceData = {
   usdToToman: 70000, 
@@ -11,9 +15,9 @@ const DEFAULT_PRICES: PriceData = {
   gold18ToToman: 4700000, 
   cryptoUsdPrices: {
     'USDT': 1.00,
-    'ETH': 3450.00,
-    'ADA': 0.68,
-    'ETC': 26.00,
+    'ETH': 2500.00,
+    'ADA': 0.60,
+    'ETC': 22.00,
   },
   fetchedAt: Date.now(),
 };
@@ -25,42 +29,42 @@ export const fetchPrices = async (): Promise<PriceData> => {
 
 export const fetchLivePricesWithAI = async (): Promise<{ data: PriceData, sources: {title: string, uri: string}[] }> => {
   try {
+    const ai = getAIClient();
     const now = new Date();
     const persianDate = now.toLocaleDateString('fa-IR');
-    const currentTime = now.toLocaleTimeString('fa-IR');
+
+    const prompt = `امروز ${persianDate} است. 
+    قیمت‌های لحظه‌ای بازار آزاد تهران را از سایت‌های معتبر پیدا کن.
+    من این ۳ مورد را به تومان نیاز دارم:
+    1. دلار آمریکا
+    2. یورو
+    3. طلا ۱۸ عیار
+    خروجی JSON: {"usd": number, "eur": number, "gold": number}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `امروز ${persianDate} و ساعت ${currentTime} است. 
-      وظیفه تو استخراج دقیق قیمت‌های لحظه‌ای از سایت‌های tgju.org و bonbast.com است.
-      
-      لطفا قیمت‌های زیر را پیدا کن:
-      ۱. قیمت فروش نقد ۱ دلار آمریکا در بازار آزاد تهران (دقیق).
-      ۲. قیمت ۱ گرم طلای ۱۸ عیار (دقت کن قیمت گرم ۱۸ را می‌خواهم نه مثقال یا سکه).
-      ۳. قیمت فروش ۱ یورو در بازار آزاد.
-
-      خروجی را فقط به صورت JSON زیر برگردان:
-      {"usd": number, "gold_gram_18": number, "eur": number}`,
+      contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json"
       },
     });
 
-    const jsonStr = response.text || "{}";
-    const cleanJson = JSON.parse(jsonStr.replace(/```json|```/g, ""));
+    const text = response.text || "{}";
+    const cleanJson = JSON.parse(text);
     
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
       ?.map((chunk: any) => ({
-        title: chunk.web?.title || 'منبع قیمت',
-        uri: chunk.web?.uri || ''
-      })) || [];
+        title: chunk.web?.title || 'منبع معتبر قیمت',
+        uri: chunk.web?.uri || '#'
+      }))
+      .filter((s: any) => s.uri !== '#') || [];
 
     const updatedData: PriceData = {
       ...DEFAULT_PRICES,
-      usdToToman: cleanJson.usd > 10000 ? cleanJson.usd : DEFAULT_PRICES.usdToToman,
-      eurToToman: cleanJson.eur > 10000 ? cleanJson.eur : DEFAULT_PRICES.eurToToman,
-      gold18ToToman: cleanJson.gold_gram_18 > 1000000 ? cleanJson.gold_gram_18 : DEFAULT_PRICES.gold18ToToman,
+      usdToToman: cleanJson.usd || DEFAULT_PRICES.usdToToman,
+      eurToToman: cleanJson.eur || DEFAULT_PRICES.eurToToman,
+      gold18ToToman: cleanJson.gold || DEFAULT_PRICES.gold18ToToman,
       fetchedAt: Date.now(),
     };
 

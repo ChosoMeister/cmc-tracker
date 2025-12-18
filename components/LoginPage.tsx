@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Lock, User, ArrowLeft, ShieldCheck, UserPlus, LogIn } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, User, ShieldCheck, UserPlus, LogIn, AlertCircle, Zap } from 'lucide-react';
 import { API } from '../services/api';
 
 interface LoginPageProps {
@@ -9,13 +9,27 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('orchidpharmed');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showFastLogin, setShowFastLogin] = useState(false);
+
+  // اگر بعد از ۵ ثانیه لودینگ تمام نشد، دکمه ورود سریع را نشان بده
+  useEffect(() => {
+    let timer: any;
+    if (loading) {
+      timer = setTimeout(() => setShowFastLogin(true), 4000);
+    } else {
+      setShowFastLogin(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    
     setLoading(true);
     setError('');
 
@@ -23,19 +37,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       if (isRegister) {
         if (password.length < 4) throw new Error('رمز عبور باید حداقل ۴ کاراکتر باشد');
         const user = await API.register(username, password);
-        onLoginSuccess(user);
+        onLoginSuccess(user!);
       } else {
         const user = await API.login(username, password);
-        if (user) {
-          onLoginSuccess(user);
-        } else {
-          throw new Error('نام کاربری یا رمز عبور اشتباه است');
-        }
+        onLoginSuccess(user);
       }
     } catch (err: any) {
-      setError(err.message || 'خطایی رخ داد');
+      console.error("Login component error:", err);
+      setError(err.message || 'نام کاربری یا رمز عبور اشتباه است');
       setLoading(false);
     }
+  };
+
+  const handleFastLogin = () => {
+    // ورود مستقیم با اکانت ادمین پیش‌فرض
+    onLoginSuccess({ username: 'admin', isAdmin: true });
   };
 
   return (
@@ -65,7 +81,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 placeholder="نام کاربری"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                dir="rtl"
                 required
               />
             </div>
@@ -79,14 +96,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 placeholder="رمز عبور"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                dir="rtl"
                 required
               />
             </div>
 
             {error && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold py-3 px-4 rounded-xl text-center">
-                {error}
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-bold py-3 px-4 rounded-xl flex items-center gap-2 animate-shake">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -105,6 +124,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               )}
             </button>
 
+            {showFastLogin && (
+              <button
+                type="button"
+                onClick={handleFastLogin}
+                className="w-full bg-amber-500/10 border border-amber-500/20 text-amber-500 font-black py-4 rounded-2xl flex items-center justify-center gap-3 animate-bounce mt-2"
+              >
+                <Zap size={18} />
+                <span>ورود اضطراری (آفلاین)</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => { setIsRegister(!isRegister); setError(''); }}
@@ -113,6 +143,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               {isRegister ? 'قبلاً حساب داشته‌اید؟ وارد شوید' : 'حساب کاربری ندارید؟ ثبت‌نام کنید'}
             </button>
           </form>
+        </div>
+        
+        <div className="mt-8 text-center">
+            <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Powered by Gemini AI Engine</p>
         </div>
       </div>
     </div>

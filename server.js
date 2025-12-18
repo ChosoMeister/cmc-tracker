@@ -11,12 +11,16 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const DATA_DIR = path.join(__dirname, 'data');
+
+// در محیط داکر یا پروداکشن، دیتا در پوشه /app/data ذخیره می‌شود
+const DATA_DIR = process.env.NODE_ENV === 'production' ? '/app/data' : path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json');
 
-// ایجاد پوشه دیتا در صورت عدم وجود
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+// اطمینان از وجود دایرکتوری داده‌ها
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify([]));
 if (!fs.existsSync(PRICES_FILE)) fs.writeFileSync(PRICES_FILE, JSON.stringify(null));
 
@@ -24,30 +28,40 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// متغیرهای محیطی داکر برای ادمین
 const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'orchidpharmed';
 
-// هلپر برای خواندن/نوشتن در فایل
-const getUsers = () => JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-const saveUsers = (users) => fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+const getUsers = () => {
+    try {
+        const data = fs.readFileSync(USERS_FILE, 'utf8');
+        return JSON.parse(data);
+    } catch (e) { return []; }
+};
 
-// مقداردهی ادمین بر اساس ENV
+const saveUsers = (users) => {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+};
+
 const refreshAdmin = () => {
     let users = getUsers();
-    let admin = users.find(u => u.isAdmin === true);
-    if (!admin) {
-        users.push({ username: ADMIN_USER, passwordHash: ADMIN_PASS, isAdmin: true, createdAt: new Date(), transactions: [] });
+    let adminIdx = users.findIndex(u => u.username === ADMIN_USER);
+    if (adminIdx === -1) {
+        users.push({ 
+            username: ADMIN_USER, 
+            passwordHash: ADMIN_PASS, 
+            isAdmin: true, 
+            createdAt: new Date(), 
+            transactions: [] 
+        });
     } else {
-        admin.username = ADMIN_USER;
-        admin.passwordHash = ADMIN_PASS;
+        users[adminIdx].passwordHash = ADMIN_PASS;
+        users[adminIdx].isAdmin = true;
     }
     saveUsers(users);
 };
 refreshAdmin();
 
-// --- API Endpoints ---
-
+// API Endpoints
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const users = getUsers();
@@ -59,7 +73,7 @@ app.post('/api/login', (req, res) => {
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     let users = getUsers();
-    if (users.find(u => u.username === username)) return res.status(400).json({ message: 'یوزر موجود است' });
+    if (users.find(u => u.username === username)) return res.status(400).json({ message: 'نام کاربری تکراری است' });
     const newUser = { username, passwordHash: password, createdAt: new Date(), transactions: [], isAdmin: false };
     users.push(newUser);
     saveUsers(users);
@@ -67,30 +81,18 @@ app.post('/api/register', (req, res) => {
 });
 
 app.get('/api/users', (req, res) => {
-    const users = getUsers();
-    res.json(users.map(u => ({ username: u.username, createdAt: u.createdAt, txCount: u.transactions.length, isAdmin: !!u.isAdmin })));
+    res.json(getUsers().map(u => ({ username: u.username, createdAt: u.createdAt, txCount: u.transactions.length, isAdmin: !!u.isAdmin })));
 });
 
 app.post('/api/users/delete', (req, res) => {
     const { username } = req.body;
-    if (username === ADMIN_USER) return res.status(400).json({ message: 'حذف ادمین اصلی غیرمجاز است' });
-    let users = getUsers().filter(u => u.username !== username);
-    saveUsers(users);
-    res.json({ success: true });
-});
-
-app.post('/api/users/update-pass', (req, res) => {
-    const { username, newPassword } = req.body;
-    let users = getUsers();
-    const user = users.find(u => u.username === username);
-    if (user) user.passwordHash = newPassword;
-    saveUsers(users);
+    if (username === ADMIN_USER) return res.status(400).json({ message: 'حذف ادمین غیرمجاز است' });
+    saveUsers(getUsers().filter(u => u.username !== username));
     res.json({ success: true });
 });
 
 app.get('/api/transactions', (req, res) => {
-    const { username } = req.query;
-    const user = getUsers().find(u => u.username === username);
+    const user = getUsers().find(u => u.username === req.query.username);
     res.json(user ? user.transactions : []);
 });
 
@@ -107,19 +109,10 @@ app.post('/api/transactions', (req, res) => {
     res.json({ success: true });
 });
 
-app.post('/api/transactions/delete', (req, res) => {
-    const { username, txId } = req.body;
-    let users = getUsers();
-    const user = users.find(u => u.username === username);
-    if (user) {
-        user.transactions = user.transactions.filter(t => t.id !== txId);
-        saveUsers(users);
-    }
-    res.json({ success: true });
-});
-
 app.get('/api/prices', (req, res) => {
-    res.json(JSON.parse(fs.readFileSync(PRICES_FILE, 'utf8')));
+    try {
+        res.json(JSON.parse(fs.readFileSync(PRICES_FILE, 'utf8')));
+    } catch (e) { res.json(null); }
 });
 
 app.post('/api/prices', (req, res) => {
@@ -127,9 +120,9 @@ app.post('/api/prices', (req, res) => {
     res.json({ success: true });
 });
 
-// مسیرهای کلاینت
+// SPA Routing: ارسال تمام درخواست‌های ناشناخته به ایندکس
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Production server running on port ${PORT}`));
