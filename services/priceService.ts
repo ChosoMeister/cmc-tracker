@@ -1,7 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { PriceData } from '../types';
-import * as Storage from './storage';
+import { API } from './api';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -19,9 +19,8 @@ const DEFAULT_PRICES: PriceData = {
 };
 
 export const fetchPrices = async (): Promise<PriceData> => {
-  const stored = Storage.getStoredPrices();
-  if (stored) return stored;
-  return DEFAULT_PRICES;
+  const stored = await API.getPrices();
+  return stored || DEFAULT_PRICES;
 };
 
 export const fetchLivePricesWithAI = async (): Promise<{ data: PriceData, sources: {title: string, uri: string}[] }> => {
@@ -40,7 +39,7 @@ export const fetchLivePricesWithAI = async (): Promise<{ data: PriceData, source
       ۲. قیمت ۱ گرم طلای ۱۸ عیار (دقت کن قیمت گرم ۱۸ را می‌خواهم نه مثقال یا سکه).
       ۳. قیمت فروش ۱ یورو در بازار آزاد.
 
-      خروجی را فقط به صورت JSON زیر برگردان (اعداد بدون کاما و به تومان):
+      خروجی را فقط به صورت JSON زیر برگردان:
       {"usd": number, "gold_gram_18": number, "eur": number}`,
       config: {
         tools: [{ googleSearch: {} }],
@@ -65,13 +64,11 @@ export const fetchLivePricesWithAI = async (): Promise<{ data: PriceData, source
       fetchedAt: Date.now(),
     };
 
-    // ذخیره در کش
-    Storage.savePrices(updatedData);
-
+    await API.savePrices(updatedData);
     return { data: updatedData, sources };
   } catch (error) {
     console.error("AI Price Fetch Error:", error);
-    const lastStored = Storage.getStoredPrices();
+    const lastStored = await API.getPrices();
     return { data: lastStored || DEFAULT_PRICES, sources: [] };
   }
 };
