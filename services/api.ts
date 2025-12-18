@@ -1,112 +1,84 @@
 
-import { Transaction, PriceData, AssetSymbol } from '../types';
+import { Transaction, PriceData } from '../types';
 
-// این بخش در یک پروژه واقعی با فراخوانی‌های Fetch/Axios به سمت سرور (Node.js/Python) جایگزین می‌شود.
-// در اینجا ما منطق دیتابیس فایل‌محور را شبیه‌سازی می‌کنیم.
-
-interface UserRecord {
-  username: string;
-  passwordHash: string;
-  createdAt: string;
-  transactions: Transaction[];
-  isAdmin?: boolean;
-}
-
-// دیتابیس فرضی سرور (Global State Simulation)
-let _serverUsers: UserRecord[] = JSON.parse(localStorage.getItem('__server_users') || '[]');
-let _serverPrices: PriceData | null = JSON.parse(localStorage.getItem('__server_prices') || 'null');
-
-// مقداردهی اولیه ادمین اگر وجود نداشته باشد
-if (!_serverUsers.find(u => u.username === 'admin')) {
-  _serverUsers.push({
-    username: 'admin',
-    passwordHash: 'orchidpharmed',
-    createdAt: new Date().toISOString(),
-    transactions: [],
-    isAdmin: true
-  });
-}
-
-const syncWithServer = () => {
-  localStorage.setItem('__server_users', JSON.stringify(_serverUsers));
-  localStorage.setItem('__server_prices', JSON.stringify(_serverPrices));
-};
+const BASE_URL = ''; // چون سرور فایل‌های استاتیک را سرو می‌کند، آدرس پایه خالی است
 
 export const API = {
-  // --- احراز هویت ---
   login: async (username: string, pass: string) => {
-    const user = _serverUsers.find(u => u.username === username && u.passwordHash === pass);
-    return user ? { username: user.username, isAdmin: !!user.isAdmin } : null;
+    const res = await fetch(`${BASE_URL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password: pass })
+    });
+    if (!res.ok) return null;
+    return res.json();
   },
 
   register: async (username: string, pass: string) => {
-    if (_serverUsers.find(u => u.username === username)) throw new Error('این نام کاربری قبلاً ثبت شده است');
-    const newUser: UserRecord = {
-      username,
-      passwordHash: pass,
-      createdAt: new Date().toISOString(),
-      transactions: []
-    };
-    _serverUsers.push(newUser);
-    syncWithServer();
-    return { username: newUser.username, isAdmin: false };
+    const res = await fetch(`${BASE_URL}/api/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password: pass })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'ثبت‌نام ناموفق بود');
+    }
+    return res.json();
   },
 
-  // --- مدیریت کاربران (فقط ادمین) ---
   getAllUsers: async () => {
-    return _serverUsers.map(u => ({
-      username: u.username,
-      createdAt: u.createdAt,
-      txCount: u.transactions.length,
-      isAdmin: !!u.isAdmin
-    }));
+    const res = await fetch(`${BASE_URL}/api/users`);
+    return res.json();
   },
 
   deleteUser: async (username: string) => {
-    if (username === 'admin') throw new Error('حذف ادمین امکان‌پذیر نیست');
-    _serverUsers = _serverUsers.filter(u => u.username !== username);
-    syncWithServer();
+    await fetch(`${BASE_URL}/api/users/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
   },
 
   updateUserPassword: async (username: string, newPass: string) => {
-    const user = _serverUsers.find(u => u.username === username);
-    if (user) {
-      user.passwordHash = newPass;
-      syncWithServer();
-    }
+    await fetch(`${BASE_URL}/api/users/update-pass`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, newPassword: newPass })
+    });
   },
 
-  // --- تراکنش‌ها ---
   getTransactions: async (username: string) => {
-    const user = _serverUsers.find(u => u.username === username);
-    return user ? user.transactions : [];
+    const res = await fetch(`${BASE_URL}/api/transactions?username=${username}`);
+    return res.json();
   },
 
   saveTransaction: async (username: string, tx: Transaction) => {
-    const user = _serverUsers.find(u => u.username === username);
-    if (user) {
-      const existingIdx = user.transactions.findIndex(t => t.id === tx.id);
-      if (existingIdx > -1) user.transactions[existingIdx] = tx;
-      else user.transactions.push(tx);
-      syncWithServer();
-    }
+    await fetch(`${BASE_URL}/api/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, transaction: tx })
+    });
   },
 
   deleteTransaction: async (username: string, txId: string) => {
-    const user = _serverUsers.find(u => u.username === username);
-    if (user) {
-      user.transactions = user.transactions.filter(t => t.id !== txId);
-      syncWithServer();
-    }
+    await fetch(`${BASE_URL}/api/transactions/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, txId })
+    });
   },
 
-  // --- قیمت‌ها (گلوبال) ---
   savePrices: async (prices: PriceData) => {
-    _serverPrices = prices;
-    syncWithServer();
+    await fetch(`${BASE_URL}/api/prices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prices)
+    });
   },
 
   getPrices: async () => {
-    return _serverPrices;
+    const res = await fetch(`${BASE_URL}/api/prices`);
+    return res.json();
   }
 };
