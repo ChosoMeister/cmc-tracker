@@ -1,0 +1,6 @@
+{
+  "name": "Gemini Portfolio Tracker",
+  "version": "SECURE_PORTFOLIO_V2",
+  "description": "A production-ready PWA Portfolio Tracker with integrated Authentication and Security settings. Includes Login, Session Management, and Password update features.",
+  "requestFramePermissions": []
+}
