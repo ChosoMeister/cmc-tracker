@@ -9,8 +9,8 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('orchidpharmed');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showFastLogin, setShowFastLogin] = useState(false);
