@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { PortfolioSummary } from '../types';
-import { formatToman, formatPercent } from '../utils/formatting';
-import { RefreshCw, TrendingUp, TrendingDown, Wallet, BarChart3, Clock } from 'lucide-react';
+import { formatToman, formatPercent, formatNumber } from '../utils/formatting';
+import { RefreshCw, Wallet, Clock } from 'lucide-react';
 
 interface SummaryCardProps {
   summary: PortfolioSummary;
@@ -16,9 +16,9 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ summary, isRefreshing,
   const isProfit = summary.totalPnlToman >= 0;
 
   return (
-    <div className="relative overflow-hidden mb-4 rounded-[32px] border border-white/5 shadow-2xl">
-      {/* Refined subtle background - no jarring gradient */}
-      <div className="absolute inset-0 bg-slate-900/50"></div>
+    <div className="relative overflow-hidden mb-4 rounded-[32px] border border-black/5 dark:border-white/5 shadow-2xl transition-colors duration-300">
+      {/* Refined subtle background */}
+      <div className="absolute inset-0 bg-white/40 dark:bg-slate-900/50 transition-colors duration-300"></div>
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none translate-y-1/2 -translate-x-1/2"></div>
 
@@ -27,82 +27,60 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ summary, isRefreshing,
 
         <div className="relative z-10">
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-600/20 flex items-center justify-center border border-blue-500/30">
-                <Wallet size={16} className="text-blue-400" />
+            <div className={`p-3 rounded-2xl ${isProfit ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400'} backdrop-blur-md`}>
+              <Wallet size={24} />
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-2 justify-end">
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${isProfit ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'}`}>
+                  {formatPercent(summary.totalPnlPercent)} {isProfit ? '↗' : '↘'}
+                </span>
+                <span className={`text-2xl font-black tracking-tight ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {formatToman(Math.abs(summary.totalPnlToman))}
+                </span>
               </div>
-              <span className="text-slate-400 text-[11px] font-black uppercase tracking-widest">ارزش فعلی سبد دارایی</span>
+              <span className="text-slate-500 dark:text-slate-400 text-[11px] font-black uppercase tracking-widest">ارزش فعلی سبد دارایی</span>
             </div>
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className={`ripple p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 ${isRefreshing ? 'animate-spin opacity-50' : ''}`}
+              className={`ripple p-2.5 rounded-2xl bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 border border-black/5 dark:border-white/10 transition-all active:scale-95 ${isRefreshing ? 'animate-spin opacity-50' : ''}`}
             >
-              <RefreshCw size={16} className="text-slate-300" />
+              <RefreshCw size={16} className="text-slate-600 dark:text-slate-300" />
             </button>
           </div>
 
-          <div className="mb-6">
-            <div className="flex items-baseline gap-2" dir="rtl">
-              <h1 className="text-4xl font-black tracking-tight text-white">
-                {formatToman(summary.totalValueToman)}
-              </h1>
-              <span className="text-sm text-slate-500 font-bold">تومان</span>
-            </div>
+          <div className="flex flex-col items-center mb-8">
+            <h2 className="text-5xl font-black text-slate-800 dark:text-white tracking-tighter drop-shadow-sm transition-colors duration-300">
+              {formatToman(summary.totalValueToman)}
+              <span className="text-2xl text-slate-400 dark:text-slate-500 mr-2 font-bold">تومان</span>
+            </h2>
+          </div>
 
-            <div className="flex items-center gap-3 mt-3">
-              <div className={`flex items-center gap-1 text-sm font-black ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`} dir="ltr">
-                {isProfit ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                <span>{formatPercent(summary.totalPnlPercent)}</span>
-              </div>
-              <div className={`text-xs font-bold px-2 py-1 rounded-lg ${isProfit ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`} dir="rtl">
-                {isProfit ? '+' : ''}{formatToman(summary.totalPnlToman)} <span className="text-[10px] opacity-70">تومان</span>
-              </div>
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white/50 dark:bg-white/5 rounded-2xl p-4 border border-white/20 dark:border-white/5 backdrop-blur-sm">
+              <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold mb-1">سرمایه‌گذاری اولیه</p>
+              <p className="text-slate-700 dark:text-slate-200 font-black text-lg">{formatToman(summary.totalCostBasisToman)} <span className="text-[10px] opacity-70">تومان</span></p>
+            </div>
+            <div className="bg-white/50 dark:bg-white/5 rounded-2xl p-4 border border-white/20 dark:border-white/5 backdrop-blur-sm">
+              <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold mb-1">سود/ضرر کل</p>
+              <p className={`${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} font-black text-lg`} dir="ltr">{isProfit ? '+' : ''}{formatToman(summary.totalPnlToman)} <span className="text-[10px] opacity-70">تومان</span></p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 p-4 bg-white/5 rounded-2xl border border-white/10 mb-6">
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-500 font-black uppercase block">سرمایه‌گذاری اولیه</span>
-              <div className="text-sm font-bold text-slate-200" dir="rtl">
-                {formatToman(summary.totalCostBasisToman)} <span className="text-[9px] text-slate-500">تومان</span>
-              </div>
-            </div>
-            <div className="space-y-1 border-r border-white/10 pr-3">
-              <span className="text-[10px] text-slate-500 font-black uppercase block">سود/ضرر کل</span>
-              <div className={`text-sm font-bold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`} dir="rtl">
-                {isProfit ? '+' : ''}{formatToman(summary.totalPnlToman)} <span className="text-[9px] opacity-70">تومان</span>
-              </div>
-            </div>
-          </div>
-
-          {prices && (
-            <div className="flex flex-col gap-2 py-3 border-t border-white/5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                  <span className="text-[10px] text-slate-500 font-bold">طلای ۱۸ (گرم):</span>
-                  <span className="text-[10px] text-amber-400 font-black" dir="ltr">{formatToman(prices.gold18ToToman)} ت</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                  <span className="text-[10px] text-slate-500 font-bold">دلار آزاد:</span>
-                  <span className="text-[10px] text-emerald-400 font-black" dir="ltr">{formatToman(prices.usdToToman)} ت</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-2 flex justify-between items-center pt-2">
-            <div className="flex items-center gap-1.5 text-[9px] text-white/60 font-bold uppercase tracking-widest" dir="ltr">
-              <Clock size={10} />
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 px-2">
+            <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full">
+              <Clock size={12} />
               <span>{new Date(lastUpdated).toLocaleTimeString('fa-IR')} - {new Date(lastUpdated).toLocaleDateString('fa-IR')}</span>
             </div>
-            <div className="flex items-center gap-1 text-[9px] text-white/70 font-black">
-              <BarChart3 size={10} />
-              <span>LIVE DATA</span>
-            </div>
+            {prices && (
+              <div className="flex items-center gap-3">
+                <span className="text-yellow-600 dark:text-yellow-500">طلای ۱۸ (گرم): ت {formatNumber(prices.gold18 / 10, 0)}</span>
+                <span className="text-emerald-600 dark:text-emerald-500">دلار آزاد: ت {formatNumber(prices.usdToToman, 0)}</span>
+              </div>
+            )}
           </div>
+
         </div>
       </div>
     </div>

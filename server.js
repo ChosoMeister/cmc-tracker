@@ -75,12 +75,12 @@ const refreshAdmin = async () => {
     let changed = false;
 
     if (adminIdx === -1) {
-        users.push({ 
-            username: ADMIN_USER, 
-            passwordHash: ADMIN_PASS, 
-            isAdmin: true, 
-            createdAt: new Date(), 
-            transactions: [] 
+        users.push({
+            username: ADMIN_USER,
+            passwordHash: ADMIN_PASS,
+            isAdmin: true,
+            createdAt: new Date(),
+            transactions: []
         });
         changed = true;
     } else {
@@ -90,7 +90,7 @@ const refreshAdmin = async () => {
             changed = true;
         }
     }
-    
+
     if (changed) await saveUsers(users);
 };
 refreshAdmin();
@@ -148,15 +148,29 @@ app.post('/api/transactions', async (req, res) => {
     const { username, transaction } = req.body;
     let users = [...getUsers()];
     const userIndex = users.findIndex(u => u.username === username);
-    
+
     if (userIndex > -1) {
         // Create a copy of the user to update
         const user = { ...users[userIndex], transactions: [...users[userIndex].transactions] };
         const idx = user.transactions.findIndex(t => t.id === transaction.id);
-        
+
         if (idx > -1) user.transactions[idx] = transaction;
         else user.transactions.push(transaction);
-        
+
+        users[userIndex] = user;
+        await saveUsers(users);
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/transactions/delete', async (req, res) => {
+    const { username, id } = req.body;
+    let users = [...getUsers()];
+    const userIndex = users.findIndex(u => u.username === username);
+
+    if (userIndex > -1) {
+        const user = { ...users[userIndex], transactions: [...users[userIndex].transactions] };
+        user.transactions = user.transactions.filter(t => t.id !== id);
         users[userIndex] = user;
         await saveUsers(users);
     }

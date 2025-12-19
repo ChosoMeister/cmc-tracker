@@ -34,9 +34,9 @@ export const parseCurrencyInput = (val: string) => {
 
 export const getAssetIconUrl = (symbol: string): string => {
   switch (symbol) {
-    case 'USD': return 'https://flagsapi.com/US/flat/64.png';
-    case 'EUR': return 'https://flagsapi.com/EU/flat/64.png';
-    case 'GOLD18': return 'https://cdn-icons-png.flaticon.com/512/2652/2652416.png'; 
+    case 'USD': return 'https://flagcdn.com/w80/us.png';
+    case 'EUR': return 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Flag_of_Europe.svg/96px-Flag_of_Europe.svg.png';
+    case 'GOLD18': return 'https://cdn-icons-png.flaticon.com/512/2652/2652416.png';
     case 'USDT': return 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025';
     case 'ETH': return 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025';
     case 'ADA': return 'https://cryptologos.cc/logos/cardano-ada-logo.png?v=025';
