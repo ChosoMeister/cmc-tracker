@@ -9,8 +9,7 @@ import { API } from './services/api';
 import * as PriceService from './services/priceService';
 import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle } from 'lucide-react';
 import { formatToman, formatNumber, formatPercent } from './utils/formatting';
-// Note: Lazy loading recharts if possible, but it is used in App directly via imports. For now keeping it.
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+// Recharts imports removed as they are unused in the current render
 import * as AuthService from './services/authService';
 
 // Lazy Load Heavy Components
