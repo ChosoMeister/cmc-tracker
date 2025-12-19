@@ -226,7 +226,12 @@ export default function App() {
                 </div>
                 <div>
                   <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">{displayName || 'پنل مدیریت'}</span>
-                  <span className="text-[10px] text-blue-600 font-bold uppercase">{user.username}</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[10px] text-blue-600 font-bold uppercase">{user.username}</span>
+                    <span className="text-[8px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-violet-200 dark:border-violet-500/20">
+                      <Sparkles size={8} /> Powered by AI
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -245,10 +250,11 @@ export default function App() {
                 <button
                   onClick={handleAiUpdate}
                   disabled={isAiLoading}
-                  className={`flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl active:scale-95 transition-all ${isAiLoading ? 'animate-pulse opacity-70' : ''}`}
+                  className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isAiLoading ? 'animate-pulse opacity-80' : ''}`}
                 >
-                  <Sparkles size={14} />
-                  <span>بروزرسانی</span>
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
+                  <Sparkles size={14} className={isAiLoading ? "animate-spin" : ""} />
+                  <span>بروزرسانی هوشمند</span>
                 </button>
               </div>
             </div>
