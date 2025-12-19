@@ -344,7 +344,20 @@ export default function App() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
               <div className="flex items-center gap-2">
-                <button onClick={() => setIsSettingsDrawerOpen(true)} className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]" aria-label="تنظیمات"><Settings size={18} /></button>
+                <button
+                  onClick={() => setIsSettingsDrawerOpen(true)}
+                  className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]"
+                  aria-label="تنظیمات"
+                >
+                  <Settings size={18} />
+                </button>
+                <button
+                  onClick={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
+                  className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white border border-white/10 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 transition-all"
+                  aria-label="افزودن تراکنش جدید"
+                >
+                  <Plus size={18} strokeWidth={3} />
+                </button>
                 <button onClick={handleLogout} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
               </div>
             </div>
@@ -366,15 +379,6 @@ export default function App() {
         )}
 
         <BottomNav currentTab={tab} onTabChange={setTab} />
-
-        {/* Floating Action Button */}
-        <button
-          onClick={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
-          className="fixed bottom-24 right-6 md:right-8 z-[999] ripple spring-bounce bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl p-4 shadow-xl hover:shadow-2xl active:scale-90 transition-all border border-white/10"
-          aria-label="افزودن تراکنش جدید"
-        >
-          <Plus size={24} strokeWidth={3} />
-        </button>
 
         <TransactionModal isOpen={isTxModalOpen} initialData={editingTransaction} onClose={() => setIsTxModalOpen(false)} onSave={handleSaveTransaction} onDelete={handleDeleteTransaction} />
         <SettingsDrawer
