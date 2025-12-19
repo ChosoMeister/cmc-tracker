@@ -31,11 +31,11 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ summary, isRefreshing,
               <Wallet size={24} />
             </div>
             <div className="text-right">
-              <div className="flex items-center gap-2 justify-end">
+              <div className="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2 justify-end">
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${isProfit ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'}`}>
                   {formatPercent(summary.totalPnlPercent)} {isProfit ? '↗' : '↘'}
                 </span>
-                <span className={`text-2xl font-black tracking-tight ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                <span className={`text-lg sm:text-2xl font-black tracking-tight ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {formatToman(Math.abs(summary.totalPnlToman))}
                 </span>
               </div>
