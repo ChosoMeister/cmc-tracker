@@ -34,25 +34,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   }, [loading]);
 
   useEffect(() => {
-    if (!isForgot) return;
+    let cancelled = false;
+    let clearErrorTimer: any;
+    if (!isForgot) {
+      setSecurityQuestion('');
+      setError('');
+      setQuestionLoading(false);
+      return () => { };
+    }
     if (!username) {
       setSecurityQuestion('');
-      return;
+      setError('');
+      setQuestionLoading(false);
+      return () => { };
     }
-    const loadQuestion = async () => {
+    const debounceTimer = setTimeout(async () => {
       setQuestionLoading(true);
       setError('');
       try {
         const question = await API.getSecurityQuestion(username);
+        if (cancelled) return;
         setSecurityQuestion(question);
+        setError('');
       } catch (err: any) {
+        if (cancelled) return;
         setSecurityQuestion('');
         setError(err?.message || 'دریافت سوال امنیتی ممکن نشد');
+        clearErrorTimer = setTimeout(() => {
+          if (!cancelled) setError('');
+        }, 2000);
       } finally {
-        setQuestionLoading(false);
+        if (!cancelled) setQuestionLoading(false);
       }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(debounceTimer);
+      if (clearErrorTimer) clearTimeout(clearErrorTimer);
     };
-    loadQuestion();
   }, [username, isForgot]);
 
   const handleSubmit = async (e: React.FormEvent) => {

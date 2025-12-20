@@ -34,19 +34,21 @@ export const parseCurrencyInput = (val: string) => {
   return parseFloat(val.toString().replace(/,/g, ""));
 };
 
+const CRYPTO_ICON_CDN_BASE = 'https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color';
+const CRYPTO_ICON_GENERIC = 'https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/generic.png';
 const CRYPTO_ICON_MAP: Record<string, string> = {
-  BTC: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=025',
-  ETH: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025',
-  ETC: 'https://cryptologos.cc/logos/ethereum-classic-etc-logo.png?v=025',
-  ADA: 'https://cryptologos.cc/logos/cardano-ada-logo.png?v=025',
-  USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025',
-  BNB: 'https://cryptologos.cc/logos/bnb-bnb-logo.png?v=025',
-  XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png?v=025',
-  SHIB: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.png?v=025',
-  SOL: 'https://cryptologos.cc/logos/solana-sol-logo.png?v=025',
-  TON: 'https://cryptologos.cc/logos/toncoin-ton-logo.png?v=025',
-  TRX: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025',
-  LTC: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png?v=025',
+  BTC: `${CRYPTO_ICON_CDN_BASE}/btc.png`,
+  ETH: `${CRYPTO_ICON_CDN_BASE}/eth.png`,
+  ETC: `${CRYPTO_ICON_CDN_BASE}/etc.png`,
+  ADA: `${CRYPTO_ICON_CDN_BASE}/ada.png`,
+  USDT: `${CRYPTO_ICON_CDN_BASE}/usdt.png`,
+  BNB: `${CRYPTO_ICON_CDN_BASE}/bnb.png`,
+  XRP: `${CRYPTO_ICON_CDN_BASE}/xrp.png`,
+  SHIB: `${CRYPTO_ICON_CDN_BASE}/shib.png`,
+  SOL: `${CRYPTO_ICON_CDN_BASE}/sol.png`,
+  TON: `${CRYPTO_ICON_CDN_BASE}/ton.png`,
+  TRX: `${CRYPTO_ICON_CDN_BASE}/trx.png`,
+  LTC: `${CRYPTO_ICON_CDN_BASE}/ltc.png`,
 };
 
 const FIAT_FLAG_MAP: Record<string, string> = {
@@ -58,21 +60,24 @@ const FIAT_FLAG_MAP: Record<string, string> = {
   'EUR-IST': 'eu', 'EUR-HAV': 'eu', 'USD-HAV': 'us', 'USD-IST': 'us', 'USD-SULAYMANIYAH': 'us', 'USD-HERAT': 'us',
 };
 
-const GOLD_ICON_URL = 'https://cdn-icons-png.flaticon.com/512/138/138281.png';
+const GOLD_ICON_URL = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1fa99.svg'; // coin emoji
+
+const CRYPTO_ICON_FALLBACK = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%230f172a"/><stop offset="1" stop-color="%232563eb"/></linearGradient></defs><rect rx="24" ry="24" width="128" height="128" fill="url(%23g)"/><circle cx="64" cy="64" r="46" fill="%230b1221" opacity="0.65"/><text x="64" y="74" text-anchor="middle" font-size="32" font-family="Inter,Arial" font-weight="700" fill="%23e2e8f0">CR</text></svg>';
+const FIAT_FLAG_FALLBACK = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120"><defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%231e293b"/><stop offset="1" stop-color="%230ea5e9"/></linearGradient></defs><rect width="160" height="120" rx="14" fill="url(%23fg)"/><rect x="12" y="16" width="136" height="88" rx="10" fill="%230b1221" opacity="0.6"/><text x="80" y="76" text-anchor="middle" font-family="Inter,Arial" font-size="32" font-weight="800" fill="%23e2e8f0">FX</text></svg>';
 
 const getFiatIcon = (symbol: string) => {
   const flagCode = FIAT_FLAG_MAP[symbol];
   if (flagCode) {
-    return `https://wise.com/public-resources/assets/flags/rectangle/${flagCode}.png`;
+    return `https://flagcdn.com/${flagCode}.svg`;
   }
-  return `https://alanchand.com/assets/img/currency/${symbol}.svg`;
+  return FIAT_FLAG_FALLBACK;
 };
 
 export const getAssetIconUrl = (symbol: string): string => {
   const detail = getAssetDetail(symbol);
 
   if (detail.type === 'CRYPTO') {
-    return CRYPTO_ICON_MAP[symbol] || `https://alanchand.com/assets/img/crypto/${symbol}.svg`;
+    return CRYPTO_ICON_MAP[symbol] || `${CRYPTO_ICON_CDN_BASE}/${symbol.toLowerCase()}.png`;
   }
 
   if (detail.type === 'FIAT') {
@@ -80,5 +85,12 @@ export const getAssetIconUrl = (symbol: string): string => {
   }
 
   // طلا و سکه
+  return GOLD_ICON_URL;
+};
+
+export const getAssetFallbackIcon = (symbol: string): string => {
+  const detail = getAssetDetail(symbol);
+  if (detail.type === 'CRYPTO') return CRYPTO_ICON_GENERIC || CRYPTO_ICON_FALLBACK;
+  if (detail.type === 'FIAT') return FIAT_FLAG_FALLBACK;
   return GOLD_ICON_URL;
 };
