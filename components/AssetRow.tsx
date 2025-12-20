@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AssetSummary, getAssetDetail } from '../types';
-import { formatToman, formatPercent, formatNumber, getAssetIconUrl } from '../utils/formatting';
+import { formatToman, formatPercent, formatNumber, getAssetFallbackIcon, getAssetIconUrl } from '../utils/formatting';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface AssetRowProps {
@@ -11,8 +11,12 @@ interface AssetRowProps {
 
 export const AssetRow: React.FC<AssetRowProps> = ({ asset, onClick }) => {
   const isProfit = asset.pnlToman >= 0;
-  const iconUrl = getAssetIconUrl(asset.symbol);
+  const [iconUrl, setIconUrl] = useState(getAssetIconUrl(asset.symbol));
   const mutedText = 'text-[color:var(--text-muted)]';
+
+  useEffect(() => {
+    setIconUrl(getAssetIconUrl(asset.symbol));
+  }, [asset.symbol]);
 
   return (
     <div
@@ -21,11 +25,12 @@ export const AssetRow: React.FC<AssetRowProps> = ({ asset, onClick }) => {
     >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-[color:var(--muted-surface)] p-1.5 border border-[color:var(--border-color)] flex items-center justify-center overflow-hidden shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-          {iconUrl ? (
-            <img src={iconUrl} alt={asset.symbol} className="w-full h-full object-contain" />
-          ) : (
-            <span className={`text-sm font-black ${mutedText}`}>{asset.symbol.slice(0, 2)}</span>
-          )}
+          <img
+            src={iconUrl}
+            alt={asset.symbol}
+            className="w-full h-full object-contain"
+            onError={() => setIconUrl(getAssetFallbackIcon(asset.symbol))}
+          />
         </div>
         <div>
           <div className="font-black text-[color:var(--text-primary)] text-sm flex items-center gap-1.5">
