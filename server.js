@@ -6,6 +6,49 @@ import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import * as cheerio from 'cheerio';
+import bcrypt from 'bcrypt';
+import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
+
+// Zod Validation Schemas
+const usernameSchema = z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, 'نام کاربری فقط شامل حروف، اعداد و _ باشد');
+const passwordSchema = z.string().min(6).max(100);
+
+const loginSchema = z.object({
+    username: usernameSchema,
+    password: passwordSchema
+});
+
+const registerSchema = z.object({
+    username: usernameSchema,
+    password: passwordSchema,
+    displayName: z.string().max(100).optional(),
+    securityQuestion: z.string().min(5).max(200),
+    securityAnswer: z.string().min(2).max(100)
+});
+
+const resetPasswordSchema = z.object({
+    username: usernameSchema,
+    securityAnswer: z.string().min(2).max(100),
+    newPassword: passwordSchema
+});
+
+// Rate Limiters
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 attempts per window
+    message: { message: 'تلاش‌های زیادی انجام شد. لطفاً ۱۵ دقیقه صبر کنید.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 60, // 60 requests per minute
+    message: { message: 'تعداد درخواست‌ها بیش از حد مجاز است.' }
+});
+
+const BCRYPT_ROUNDS = 12;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -178,8 +221,12 @@ const fetchGoldBoard = async (usdRate = FALLBACK_PRICES.usdToToman) => {
     return prices;
 };
 
-app.use(cors());
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    credentials: true
+}));
 app.use(bodyParser.json());
+app.use('/api', apiLimiter); // Apply general rate limiting to all API routes
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
@@ -254,33 +301,87 @@ app.post('/api/logs', (req, res) => {
 });
 
 // API Endpoints
-app.post('/api/login', (req, res) => {
-    let { username, password } = req.body;
+app.post('/api/login', authLimiter, async (req, res) => {
+    // Validate input
+    const validation = loginSchema.safeParse(req.body);
+    if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0]?.message || 'داده‌های ورودی نامعتبر است' });
+    }
+
+    let { username, password } = validation.data;
     username = username.toLowerCase();
     const users = getUsers();
-    const user = users.find(u => u.username === username && u.passwordHash === password);
-    if (user) return res.json({ username: user.username, isAdmin: !!user.isAdmin, displayName: user.displayName || user.username });
+    const user = users.find(u => u.username === username);
+
+    if (!user) {
+        return res.status(401).json({ message: 'نام کاربری یا رمز عبور اشتباه است' });
+    }
+
+    // Check if password is hashed (bcrypt hashes start with $2)
+    const isHashed = user.passwordHash?.startsWith('$2');
+    let isMatch = false;
+
+    if (isHashed) {
+        // Compare with bcrypt
+        isMatch = await bcrypt.compare(password, user.passwordHash);
+    } else {
+        // Legacy plain text comparison (for migration)
+        isMatch = user.passwordHash === password;
+
+        // Migrate legacy password to bcrypt hash
+        if (isMatch) {
+            const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+            const userIndex = users.findIndex(u => u.username === username);
+            users[userIndex] = { ...users[userIndex], passwordHash: hashedPassword };
+            await saveUsers(users);
+            console.log(`[Security] Migrated password for user: ${username}`);
+        }
+    }
+
+    if (isMatch) {
+        return res.json({
+            username: user.username,
+            isAdmin: !!user.isAdmin,
+            displayName: user.displayName || user.username
+        });
+    }
+
     res.status(401).json({ message: 'نام کاربری یا رمز عبور اشتباه است' });
 });
 
-app.post('/api/register', async (req, res) => {
-    let { username, password, displayName, securityQuestion, securityAnswer } = req.body;
+app.post('/api/register', authLimiter, async (req, res) => {
+    // Validate input
+    const validation = registerSchema.safeParse(req.body);
+    if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0]?.message || 'داده‌های ورودی نامعتبر است' });
+    }
+
+    let { username, password, displayName, securityQuestion, securityAnswer } = validation.data;
     username = username.toLowerCase();
     let users = [...getUsers()];
-    if (users.find(u => u.username === username)) return res.status(400).json({ message: 'نام کاربری تکراری است' });
-    if (!securityQuestion || !securityAnswer) return res.status(400).json({ message: 'سوال و پاسخ امنیتی اجباری است' });
+
+    if (users.find(u => u.username === username)) {
+        return res.status(400).json({ message: 'نام کاربری تکراری است' });
+    }
+
+    // Hash password and security answer
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const hashedSecurityAnswer = await bcrypt.hash(securityAnswer.toLowerCase(), BCRYPT_ROUNDS);
+
     const newUser = {
         username,
-        passwordHash: password,
+        passwordHash: hashedPassword,
         displayName: displayName || username,
         createdAt: new Date(),
         transactions: [],
         isAdmin: false,
         securityQuestion,
-        securityAnswerHash: securityAnswer
+        securityAnswerHash: hashedSecurityAnswer
     };
+
     users.push(newUser);
     await saveUsers(users);
+    console.log(`[Security] New user registered with hashed credentials: ${username}`);
     res.json({ username: newUser.username, isAdmin: false, displayName: newUser.displayName });
 });
 
@@ -291,17 +392,47 @@ app.get('/api/security-question', (req, res) => {
     res.json({ securityQuestion: user.securityQuestion || 'سوال امنیتی ثبت نشده است' });
 });
 
-app.post('/api/reset-password', async (req, res) => {
-    let { username, securityAnswer, newPassword } = req.body;
+app.post('/api/reset-password', authLimiter, async (req, res) => {
+    // Validate input
+    const validation = resetPasswordSchema.safeParse(req.body);
+    if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0]?.message || 'داده‌های ورودی نامعتبر است' });
+    }
+
+    let { username, securityAnswer, newPassword } = validation.data;
     username = username.toLowerCase();
     let users = [...getUsers()];
     const userIndex = users.findIndex(u => u.username === username);
-    if (userIndex === -1) return res.status(404).json({ message: 'کاربر یافت نشد' });
+
+    if (userIndex === -1) {
+        return res.status(404).json({ message: 'کاربر یافت نشد' });
+    }
+
     const user = users[userIndex];
-    if (!user.securityAnswerHash) return res.status(400).json({ message: 'سوال امنیتی ثبت نشده است' });
-    if (user.securityAnswerHash !== securityAnswer) return res.status(401).json({ message: 'پاسخ امنیتی اشتباه است' });
-    users[userIndex] = { ...user, passwordHash: newPassword };
+    if (!user.securityAnswerHash) {
+        return res.status(400).json({ message: 'سوال امنیتی ثبت نشده است' });
+    }
+
+    // Check if security answer is hashed
+    const isHashed = user.securityAnswerHash?.startsWith('$2');
+    let isMatch = false;
+
+    if (isHashed) {
+        isMatch = await bcrypt.compare(securityAnswer.toLowerCase(), user.securityAnswerHash);
+    } else {
+        // Legacy plain text comparison
+        isMatch = user.securityAnswerHash.toLowerCase() === securityAnswer.toLowerCase();
+    }
+
+    if (!isMatch) {
+        return res.status(401).json({ message: 'پاسخ امنیتی اشتباه است' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    users[userIndex] = { ...user, passwordHash: hashedPassword };
     await saveUsers(users);
+    console.log(`[Security] Password reset for user: ${username}`);
     res.json({ success: true });
 });
 
@@ -325,12 +456,26 @@ app.post('/api/users/delete', async (req, res) => {
 
 app.post('/api/users/update-pass', async (req, res) => {
     let { username, newPassword } = req.body;
+
+    // Validate password
+    const passValidation = passwordSchema.safeParse(newPassword);
+    if (!passValidation.success) {
+        return res.status(400).json({ message: 'رمز عبور باید حداقل ۶ کاراکتر باشد' });
+    }
+
     username = username.toLowerCase();
     let users = [...getUsers()];
     const userIndex = users.findIndex(u => u.username === username);
-    if (userIndex === -1) return res.status(404).json({ message: 'کاربر یافت نشد' });
-    users[userIndex] = { ...users[userIndex], passwordHash: newPassword };
+
+    if (userIndex === -1) {
+        return res.status(404).json({ message: 'کاربر یافت نشد' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    users[userIndex] = { ...users[userIndex], passwordHash: hashedPassword };
     await saveUsers(users);
+    console.log(`[Security] Password updated for user: ${username}`);
     res.json({ success: true });
 });
 

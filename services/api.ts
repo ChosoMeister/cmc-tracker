@@ -14,6 +14,7 @@ type Credential = {
   username: string;
   password?: string;
   isAdmin?: boolean;
+  displayName?: string;
 };
 
 const resolveEnv = (): EnvSource => {

@@ -87,6 +87,16 @@ body.dark .glass-strong {
   }
 }
 
+/* Shimmer effect for skeleton loading */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .gradient-animated {
   background-size: 200% 200%;
   animation: gradient-shift 8s ease infinite;

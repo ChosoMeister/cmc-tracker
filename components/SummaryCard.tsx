@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { PortfolioSummary } from '../types';
 import { formatToman, formatPercent, formatNumber } from '../utils/formatting';
 import { RefreshCw, Wallet, Clock } from 'lucide-react';
+import { AnimatedToman, AnimatedPercent } from './AnimatedNumber';
 
 interface SummaryCardProps {
   summary: PortfolioSummary;
@@ -12,7 +13,7 @@ interface SummaryCardProps {
   prices?: any;
 }
 
-export const SummaryCard: React.FC<SummaryCardProps> = ({ summary, isRefreshing, lastUpdated, onRefresh, prices }) => {
+const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshing, lastUpdated, onRefresh, prices }) => {
   const isProfit = summary.totalPnlToman >= 0;
 
   return (
@@ -45,7 +46,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ summary, isRefreshing,
 
           <div className="flex flex-col items-center mb-8">
             <h2 className="text-5xl font-black text-slate-800 dark:text-white tracking-tighter drop-shadow-sm transition-colors duration-300">
-              {formatToman(summary.totalValueToman)}
+              <AnimatedToman value={summary.totalValueToman} showSuffix={false} />
               <span className="text-2xl text-slate-400 dark:text-slate-500 mr-2 font-bold">تومان</span>
             </h2>
           </div>
@@ -85,3 +86,13 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ summary, isRefreshing,
     </div>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export const SummaryCard = memo(SummaryCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.summary.totalValueToman === nextProps.summary.totalValueToman &&
+    prevProps.summary.totalPnlToman === nextProps.summary.totalPnlToman &&
+    prevProps.isRefreshing === nextProps.isRefreshing &&
+    prevProps.lastUpdated === nextProps.lastUpdated
+  );
+});

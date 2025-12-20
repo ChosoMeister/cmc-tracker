@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { PortfolioSummary } from '../types';
 import { formatToman, formatPercent } from '../utils/formatting';
@@ -10,7 +10,7 @@ interface AllocationChartProps {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1', '#ec4899'];
 
-export const AllocationChart: React.FC<AllocationChartProps> = ({ summary }) => {
+const AllocationChartComponent: React.FC<AllocationChartProps> = ({ summary }) => {
     if (!summary || summary.assets.length === 0) return null;
 
     const data = summary.assets
@@ -70,7 +70,7 @@ export const AllocationChart: React.FC<AllocationChartProps> = ({ summary }) => 
                                 stroke="none"
                             >
                                 {data.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={6} />
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
                             <Tooltip content={<CustomTooltip />} />
@@ -92,3 +92,12 @@ export const AllocationChart: React.FC<AllocationChartProps> = ({ summary }) => 
         </div>
     );
 };
+
+// Memoize to prevent unnecessary re-renders when chart data hasn't changed
+export const AllocationChart = memo(AllocationChartComponent, (prevProps, nextProps) => {
+    if (prevProps.summary.assets.length !== nextProps.summary.assets.length) return false;
+    return prevProps.summary.assets.every((asset, i) =>
+        asset.allocationPercent === nextProps.summary.assets[i]?.allocationPercent &&
+        asset.currentValueToman === nextProps.summary.assets[i]?.currentValueToman
+    );
+});
