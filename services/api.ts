@@ -234,6 +234,13 @@ export const API = {
     return JSON.parse(localStorage.getItem(LOCAL_PRICES_KEY) || 'null');
   },
 
+  refreshLivePrices: async () => {
+    const res = await withTimeout(`${BASE_URL}/api/prices/refresh`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'دریافت قیمت‌های جدید ناموفق بود');
+    return data;
+  },
+
   savePrices: async (prices: PriceData) => {
     localStorage.setItem(LOCAL_PRICES_KEY, JSON.stringify(prices));
     await fetch(`${BASE_URL}/api/prices`, {

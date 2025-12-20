@@ -1,5 +1,4 @@
 
-import { GoogleGenAI } from "@google/genai";
 import { PriceData } from '../types';
 import { API } from './api';
 
@@ -15,95 +14,78 @@ const sendLogToServer = async (level: 'info' | 'warn' | 'error', message: string
   }
 };
 
-// ایمن‌سازی کلید API - از متغیرهای محیطی با پیشوند VITE برای کلاینت و گزینه‌های سرور پشتیبانی می‌کند
-const resolveApiKey = (): string => {
-  // Vite در زمان بیلد فقط متغیرهای با پیشوند VITE_ را به فرانت‌اند اکسپوز می‌کند
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || import.meta.env.API_KEY || '';
-  }
-
-  // در محیط‌های Node (اسکریپت‌ها یا تست‌ها)
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-  }
-
-  return '';
-};
-
-const getAIClient = () => {
-  const apiKey = resolveApiKey();
-  if (!apiKey) {
-    sendLogToServer('error', 'Gemini API key is missing. Please set VITE_GEMINI_API_KEY before building the image.');
-    throw new Error('Gemini API key is not configured. Set VITE_GEMINI_API_KEY in your environment.');
-  }
-  return new GoogleGenAI({ apiKey });
+const toNumber = (value: any, fallback: number) => {
+  if (value === null || value === undefined) return fallback;
+  const numeric = Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
 };
 
 const DEFAULT_PRICES: PriceData = {
-  usdToToman: 70000, 
+  usdToToman: 70000,
   eurToToman: 74000,
-  gold18ToToman: 4700000, 
-  cryptoUsdPrices: {
-    'USDT': 1.00,
-    'ETH': 2500.00,
-    'ADA': 0.60,
-    'ETC': 22.00,
+  gold18ToToman: 4700000,
+  fiatPricesToman: {
+    USD: 70000,
+    EUR: 74000,
+  },
+  cryptoPricesToman: {
+    USDT: 70000,
+  },
+  goldPricesToman: {
+    GOLD18: 4700000,
   },
   fetchedAt: Date.now(),
 };
 
-export const fetchPrices = async (): Promise<PriceData> => {
-  const stored = await API.getPrices();
-  return stored || DEFAULT_PRICES;
+const normalizePriceData = (incoming?: any): PriceData => {
+  if (!incoming) return { ...DEFAULT_PRICES, fetchedAt: Date.now() };
+
+  const usd = toNumber(incoming.usdToToman, DEFAULT_PRICES.usdToToman);
+  const eur = toNumber(incoming.eurToToman, DEFAULT_PRICES.eurToToman);
+  const gold = toNumber(incoming.gold18ToToman, DEFAULT_PRICES.gold18ToToman);
+
+  const fiatPrices: Record<string, number> = { ...(incoming.fiatPricesToman || {}) };
+  if (!fiatPrices.USD) fiatPrices.USD = usd;
+  if (!fiatPrices.EUR) fiatPrices.EUR = eur;
+
+  const cryptoPrices: Record<string, number> = { ...(incoming.cryptoPricesToman || {}) };
+  if (!cryptoPrices.USDT && incoming.cryptoUsdPrices?.USDT) {
+    cryptoPrices.USDT = toNumber(incoming.cryptoUsdPrices.USDT, 1) * (fiatPrices.USD || usd);
+  }
+
+  const goldPrices: Record<string, number> = { ...(incoming.goldPricesToman || {}) };
+  if (!goldPrices.GOLD18 && incoming.gold18ToToman) goldPrices.GOLD18 = toNumber(incoming.gold18ToToman, gold);
+  if (!goldPrices['18AYAR'] && goldPrices.GOLD18) goldPrices['18AYAR'] = goldPrices.GOLD18;
+
+  return {
+    usdToToman: fiatPrices.USD || usd,
+    eurToToman: fiatPrices.EUR || eur,
+    gold18ToToman: goldPrices.GOLD18 || gold,
+    fiatPricesToman: fiatPrices,
+    cryptoPricesToman: cryptoPrices,
+    goldPricesToman: goldPrices,
+    fetchedAt: incoming.fetchedAt || Date.now(),
+  };
 };
 
-export const fetchLivePricesWithAI = async (): Promise<{ data: PriceData, sources: {title: string, uri: string}[] }> => {
+export const fetchPrices = async (): Promise<PriceData> => {
+  const stored = await API.getPrices();
+  return normalizePriceData(stored);
+};
+
+export const fetchLivePrices = async (): Promise<{ data: PriceData, sources: {title: string, uri: string}[] }> => {
   try {
-    const ai = getAIClient();
-    const now = new Date();
-    const persianDate = now.toLocaleDateString('fa-IR');
-
-    const prompt = `امروز ${persianDate} است. 
-    قیمت‌های لحظه‌ای بازار آزاد تهران را از سایت‌های معتبر پیدا کن.
-    من این ۳ مورد را به تومان نیاز دارم:
-    1. دلار آمریکا
-    2. یورو
-    3. طلا ۱۸ عیار
-    خروجی JSON: {"usd": number, "eur": number, "gold": number}`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json"
-      },
-    });
-
-    const text = response.text || "{}";
-    const cleanJson = JSON.parse(text);
-    
-    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
-      ?.map((chunk: any) => ({
-        title: chunk.web?.title || 'منبع معتبر قیمت',
-        uri: chunk.web?.uri || '#'
-      }))
-      .filter((s: any) => s.uri !== '#') || [];
-
-    const updatedData: PriceData = {
-      ...DEFAULT_PRICES,
-      usdToToman: cleanJson.usd || DEFAULT_PRICES.usdToToman,
-      eurToToman: cleanJson.eur || DEFAULT_PRICES.eurToToman,
-      gold18ToToman: cleanJson.gold || DEFAULT_PRICES.gold18ToToman,
-      fetchedAt: Date.now(),
+    const response = await API.refreshLivePrices();
+    const normalized = normalizePriceData(response?.data);
+    await API.savePrices(normalized);
+    return {
+      data: normalized,
+      sources: response?.sources || [],
     };
-
-    await API.savePrices(updatedData);
-    return { data: updatedData, sources };
   } catch (error) {
-    console.error("AI Price Fetch Error:", error);
-    sendLogToServer('error', 'AI price fetch failed', { error: String(error) });
+    console.error("Live price fetch error:", error);
+    sendLogToServer('error', 'Live price fetch failed', { error: String(error) });
     const lastStored = await API.getPrices();
-    return { data: lastStored || DEFAULT_PRICES, sources: [] };
+    return { data: normalizePriceData(lastStored), sources: [] };
   }
 };

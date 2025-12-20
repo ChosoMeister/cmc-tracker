@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import * as cheerio from 'cheerio';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +17,7 @@ const PORT = process.env.PORT || 8080;
 const DATA_DIR = process.env.NODE_ENV === 'production' ? '/app/data' : path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json');
+const FALLBACK_PRICES = { usdToToman: 70000, eurToToman: 74000, gold18ToToman: 4700000 };
 
 // Memory Cache
 let usersCache = [];
@@ -48,6 +50,108 @@ try {
     console.error('Error loading prices:', e);
     pricesCache = null;
 }
+
+const PERSIAN_DIGITS = {
+    '۰': '0',
+    '۱': '1',
+    '۲': '2',
+    '۳': '3',
+    '۴': '4',
+    '۵': '5',
+    '۶': '6',
+    '۷': '7',
+    '۸': '8',
+    '۹': '9',
+    '٠': '0',
+    '١': '1',
+    '٢': '2',
+    '٣': '3',
+    '٤': '4',
+    '٥': '5',
+    '٦': '6',
+    '٧': '7',
+    '٨': '8',
+    '٩': '9',
+};
+
+const normalizeNumber = (value = '') => {
+    const normalized = value
+        .toString()
+        .replace(/[۰-۹٠-٩]/g, (d) => PERSIAN_DIGITS[d] || d)
+        .replace(/[٬,]/g, '')
+        .replace(/[^0-9.]/g, '');
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : 0;
+};
+
+const fetchCurrencyBoard = async () => {
+    const res = await fetch('https://alanchand.com/currencies-price');
+    if (!res.ok) throw new Error('Failed to load currency rates');
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const prices = {};
+
+    $('table tbody tr').each((_, row) => {
+        const onclick = $(row).attr('onclick') || '';
+        const slug = onclick.split('/').pop()?.replace(/'/g, '').toUpperCase();
+        if (!slug) return;
+        const sell = normalizeNumber($(row).find('.sellPrice').text());
+        const buy = normalizeNumber($(row).find('.buyPrice').text());
+        const price = sell || buy;
+        if (price) prices[slug] = price;
+    });
+
+    return prices;
+};
+
+const fetchCryptoBoard = async () => {
+    const res = await fetch('https://alanchand.com/crypto-price');
+    if (!res.ok) throw new Error('Failed to load crypto rates');
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const prices = {};
+
+    $('table tbody tr').each((_, row) => {
+        const onclick = $(row).attr('onclick') || '';
+        const slug = onclick.split('/').pop()?.replace(/'/g, '').toUpperCase();
+        if (!slug) return;
+        const tomanText = $(row).find('.tmn').text();
+        const tomanPrice = normalizeNumber(tomanText);
+        if (tomanPrice) prices[slug] = tomanPrice;
+    });
+
+    return prices;
+};
+
+const fetchGoldBoard = async (usdRate = FALLBACK_PRICES.usdToToman) => {
+    const res = await fetch('https://alanchand.com/gold-price');
+    if (!res.ok) throw new Error('Failed to load gold rates');
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const prices = {};
+
+    $('table tbody tr').each((_, row) => {
+        const onclick = $(row).attr('onclick') || '';
+        const slug = onclick.split('/').pop()?.replace(/'/g, '').toUpperCase();
+        if (!slug) return;
+
+        const priceCell = $(row).find('td.priceTd').first();
+        const tomanText = priceCell.clone().children().remove().end().text();
+        const priceNumber = normalizeNumber(tomanText);
+        const hasDollar = tomanText.includes('$');
+        const tomanValue = hasDollar ? priceNumber * usdRate : priceNumber;
+
+        if (tomanValue) {
+            prices[slug] = tomanValue;
+            if (slug === '18AYAR' || slug === 'GOLD18') {
+                prices.GOLD18 = tomanValue;
+                prices['18AYAR'] = tomanValue;
+            }
+        }
+    });
+
+    return prices;
+};
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -185,6 +289,52 @@ app.post('/api/transactions/delete', async (req, res) => {
 
 app.get('/api/prices', (req, res) => {
     res.json(pricesCache);
+});
+
+app.get('/api/prices/refresh', async (req, res) => {
+    try {
+        const [fiatPrices, cryptoPrices] = await Promise.all([
+            fetchCurrencyBoard(),
+            fetchCryptoBoard()
+        ]);
+        const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
+        const goldPrices = await fetchGoldBoard(usdRate);
+
+        const priceData = {
+            usdToToman: usdRate,
+            eurToToman: fiatPrices.EUR || pricesCache?.eurToToman || FALLBACK_PRICES.eurToToman,
+            gold18ToToman: goldPrices.GOLD18 || pricesCache?.gold18ToToman || FALLBACK_PRICES.gold18ToToman,
+            fiatPricesToman: { ...fiatPrices },
+            cryptoPricesToman: { ...cryptoPrices },
+            goldPricesToman: { ...goldPrices },
+            fetchedAt: Date.now(),
+        };
+
+        if (!priceData.fiatPricesToman.USD) priceData.fiatPricesToman.USD = priceData.usdToToman;
+        if (!priceData.fiatPricesToman.EUR) priceData.fiatPricesToman.EUR = priceData.eurToToman;
+        if (!priceData.goldPricesToman.GOLD18 && priceData.gold18ToToman) {
+            priceData.goldPricesToman.GOLD18 = priceData.gold18ToToman;
+        }
+
+        pricesCache = priceData;
+        try {
+            await fs.promises.writeFile(PRICES_FILE, JSON.stringify(priceData));
+        } catch (err) {
+            console.error('Error persisting refreshed prices:', err);
+        }
+
+        res.json({
+            success: true,
+            data: priceData,
+            sources: [
+                { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
+                { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
+            ],
+        });
+    } catch (error) {
+        console.error('Error refreshing prices:', error);
+        res.status(500).json({ message: 'بروزرسانی قیمت‌ها با خطا مواجه شد' });
+    }
 });
 
 app.post('/api/prices', async (req, res) => {

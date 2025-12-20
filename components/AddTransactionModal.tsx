@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
-import { ASSET_DETAILS, AssetSymbol, Currency } from '../types';
+import { ASSET_DETAILS, AssetSymbol, Currency, getAssetDetail } from '../types';
 import { formatCurrencyInput, parseCurrencyInput } from '../utils/formatting';
 
 interface AddTransactionModalProps {
@@ -40,7 +40,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
     ...val
   }));
 
-  const isCrypto = ASSET_DETAILS[assetSymbol].type === 'CRYPTO';
+  const isCrypto = getAssetDetail(assetSymbol).type === 'CRYPTO';
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -62,7 +62,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
                 const newSymbol = e.target.value as AssetSymbol;
                 setAssetSymbol(newSymbol);
                 // Default currency logic
-                if (ASSET_DETAILS[newSymbol].type === 'CRYPTO') {
+                if (getAssetDetail(newSymbol).type === 'CRYPTO') {
                   setCurrency('USD');
                 } else {
                   setCurrency('TOMAN');

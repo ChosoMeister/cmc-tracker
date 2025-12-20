@@ -6,9 +6,8 @@ import { AllocationChart } from './components/AllocationChart';
 import { AssetRow } from './components/AssetRow';
 import { SummaryCardSkeleton, AssetRowSkeleton } from './components/Skeleton';
 import { EmptyState } from './components/EmptyState';
-import { useToast } from './components/Toast';
 import { LoginPage } from './components/LoginPage';
-import { Transaction, PriceData, PortfolioSummary, ASSET_DETAILS, AssetSummary } from './types';
+import { Transaction, PriceData, PortfolioSummary, AssetSummary, getAssetDetail } from './types';
 import { API } from './services/api';
 import * as PriceService from './services/priceService';
 import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle } from 'lucide-react';
@@ -26,8 +25,7 @@ export default function App() {
   const [tab, setTab] = useState('overview');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [prices, setPrices] = useState<PriceData | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isPriceUpdating, setIsPriceUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sources, setSources] = useState<{ title: string, uri: string }[]>([]);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
@@ -43,9 +41,8 @@ export default function App() {
   });
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const fallbackSources = [
-    { title: 'شبکه اطلاع‌رسانی طلا، سکه و ارز', uri: 'https://www.tgju.org/' },
-    { title: 'سایت اقتصادنیوز - قیمت ارز', uri: 'https://www.eghtesadonline.com/' },
-    { title: 'نرخ لحظه‌ای یورو و دلار', uri: 'https://www.bonbast.com/' },
+    { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
+    { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
   ];
 
   useEffect(() => {
@@ -98,13 +95,16 @@ export default function App() {
     }
   }, [user]);
 
-  const handleAiUpdate = async () => {
-    setIsAiLoading(true);
-    const result = await PriceService.fetchLivePricesWithAI();
-    setPrices(result.data);
-    const nextSources = result.sources.length ? result.sources : fallbackSources;
-    setSources(nextSources);
-    setIsAiLoading(false);
+  const handlePriceUpdate = async () => {
+    setIsPriceUpdating(true);
+    try {
+      const result = await PriceService.fetchLivePrices();
+      setPrices(result.data);
+      const nextSources = result.sources.length ? result.sources : fallbackSources;
+      setSources(nextSources);
+    } finally {
+      setIsPriceUpdating(false);
+    }
   };
 
   const handleDisplayNameChange = (name: string) => {
@@ -135,13 +135,19 @@ export default function App() {
     };
 
     const currentPriceMap: Record<string, number> = {
-      USD: prices.usdToToman,
-      EUR: prices.eurToToman,
       GOLD18: prices.gold18ToToman,
     };
 
-    Object.entries(prices.cryptoUsdPrices).forEach(([symbol, usdPrice]) => {
-      currentPriceMap[symbol] = usdPrice * prices.usdToToman;
+    Object.entries(prices.fiatPricesToman || {}).forEach(([symbol, tomanPrice]) => {
+      currentPriceMap[symbol] = tomanPrice;
+    });
+
+    Object.entries(prices.cryptoPricesToman || {}).forEach(([symbol, tomanPrice]) => {
+      currentPriceMap[symbol] = tomanPrice;
+    });
+
+    Object.entries(prices.goldPricesToman || {}).forEach(([symbol, tomanPrice]) => {
+      currentPriceMap[symbol] = tomanPrice;
     });
 
     const assetsMap: Record<string, AssetSummary> = {};
@@ -149,10 +155,11 @@ export default function App() {
     transactions.forEach(tx => {
       const { assetSymbol, quantity, buyPricePerUnit, buyCurrency, feesToman } = tx;
       if (!assetsMap[assetSymbol]) {
+        const details = getAssetDetail(assetSymbol);
         assetsMap[assetSymbol] = {
           symbol: assetSymbol,
-          name: ASSET_DETAILS[assetSymbol].name,
-          type: ASSET_DETAILS[assetSymbol].type,
+          name: details.name,
+          type: details.type,
           totalQuantity: 0,
           currentPriceToman: currentPriceMap[assetSymbol] || 0,
           currentValueToman: 0, costBasisToman: 0, pnlToman: 0, pnlPercent: 0, allocationPercent: 0,
@@ -248,12 +255,12 @@ export default function App() {
                   </button>
                 )}
                 <button
-                  onClick={handleAiUpdate}
-                  disabled={isAiLoading}
-                  className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isAiLoading ? 'animate-pulse opacity-80' : ''}`}
+                  onClick={handlePriceUpdate}
+                  disabled={isPriceUpdating}
+                  className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
                 >
                   <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
-                  <Sparkles size={14} className={isAiLoading ? "animate-spin" : ""} />
+                  <Sparkles size={14} className={isPriceUpdating ? "animate-spin" : ""} />
                   <span>بروزرسانی هوشمند</span>
                 </button>
               </div>
@@ -263,11 +270,11 @@ export default function App() {
               <SummaryCardSkeleton />
             ) : (
               <>
-                <SummaryCard
+              <SummaryCard
                   summary={portfolioSummary}
-                  isRefreshing={isRefreshing}
+                  isRefreshing={isPriceUpdating}
                   lastUpdated={prices?.fetchedAt || Date.now()}
-                  onRefresh={() => PriceService.fetchPrices().then(setPrices)}
+                  onRefresh={handlePriceUpdate}
                   prices={prices}
                 />
                 <AllocationChart summary={portfolioSummary} />
@@ -367,13 +374,13 @@ export default function App() {
                 <button onClick={handleLogout} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
               </div>
             </div>
-            <div className="space-y-3">
+                <div className="space-y-3">
               {[...transactions].reverse().map(tx => (
                 <div key={tx.id} onClick={() => { setEditingTransaction(tx); setIsTxModalOpen(true); }} className={`${cardSurface} p-5 rounded-3xl flex justify-between items-center cursor-pointer`}>
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-[10px]">{tx.assetSymbol}</div>
                     <div>
-                      <div className="font-black text-sm text-[color:var(--text-primary)]">{ASSET_DETAILS[tx.assetSymbol].name}</div>
+                      <div className="font-black text-sm text-[color:var(--text-primary)]">{getAssetDetail(tx.assetSymbol).name}</div>
                       <div className={`text-[10px] font-bold mt-1 ${mutedText}`} dir="ltr">{new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}</div>
                     </div>
                   </div>

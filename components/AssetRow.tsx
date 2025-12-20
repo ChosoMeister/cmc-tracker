@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AssetSummary, ASSET_DETAILS } from '../types';
+import { AssetSummary, getAssetDetail } from '../types';
 import { formatToman, formatPercent, formatNumber, getAssetIconUrl } from '../utils/formatting';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -29,7 +29,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({ asset, onClick }) => {
         </div>
         <div>
           <div className="font-black text-[color:var(--text-primary)] text-sm flex items-center gap-1.5">
-            {ASSET_DETAILS[asset.symbol].name}
+            {getAssetDetail(asset.symbol).name}
             <span className="text-[10px] bg-[color:var(--pill-bg)] text-[color:var(--text-muted)] px-1.5 py-0.5 rounded-md font-bold">{asset.symbol}</span>
           </div>
           <div className={`text-[11px] ${mutedText} mt-1 font-bold flex items-center gap-1`} dir="ltr">

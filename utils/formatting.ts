@@ -41,6 +41,13 @@ export const getAssetIconUrl = (symbol: string): string => {
     case 'ETH': return 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025';
     case 'ADA': return 'https://cryptologos.cc/logos/cardano-ada-logo.png?v=025';
     case 'ETC': return 'https://cryptologos.cc/logos/ethereum-classic-etc-logo.png?v=025';
-    default: return '';
+    default: {
+      const detail = getAssetDetail(symbol);
+      if (detail.type === 'CRYPTO') {
+        return `https://alanchand.com/assets/img/crypto/${symbol}.svg`;
+      }
+      return '';
+    }
   }
 };
+import { getAssetDetail } from '../types';

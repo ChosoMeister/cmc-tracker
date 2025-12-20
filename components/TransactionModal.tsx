@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Check, Trash2 } from 'lucide-react';
-import { ASSET_DETAILS, AssetSymbol, Currency, Transaction } from '../types';
+import { ASSET_DETAILS, AssetSymbol, Currency, Transaction, getAssetDetail } from '../types';
 import { formatCurrencyInput, parseCurrencyInput } from '../utils/formatting';
 
 interface TransactionModalProps {
@@ -65,7 +65,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     ...val
   }));
 
-  const isCrypto = ASSET_DETAILS[assetSymbol].type === 'CRYPTO';
+  const isCrypto = getAssetDetail(assetSymbol).type === 'CRYPTO';
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -88,7 +88,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               onChange={(e) => {
                 const newSymbol = e.target.value as AssetSymbol;
                 setAssetSymbol(newSymbol);
-                if (ASSET_DETAILS[newSymbol].type === 'CRYPTO') setCurrency('USD');
+                if (getAssetDetail(newSymbol).type === 'CRYPTO') setCurrency('USD');
                 else setCurrency('TOMAN');
               }}
               className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none text-[color:var(--text-primary)]"
