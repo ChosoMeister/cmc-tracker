@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import jalaali from 'jalaali-js';
-import { ChevronRight, ChevronLeft, Calendar, X } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
 
 interface JalaliDatePickerProps {
     value: string; // ISO date string (Gregorian)
@@ -34,9 +34,10 @@ const getDaysInJalaliMonth = (jy: number, jm: number): number => {
 const getFirstDayOfMonth = (jy: number, jm: number): number => {
     const { gy, gm, gd } = jalaali.toGregorian(jy, jm, 1);
     const date = new Date(gy, gm - 1, gd);
-    // Convert Sunday=0 to Saturday=0
     return (date.getDay() + 1) % 7;
 };
+
+type ViewMode = 'days' | 'months' | 'years';
 
 export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
     value,
@@ -47,6 +48,8 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
     const [currentYear, setCurrentYear] = useState(1403);
     const [currentMonth, setCurrentMonth] = useState(1);
     const [selectedDate, setSelectedDate] = useState<{ jy: number; jm: number; jd: number } | null>(null);
+    const [viewMode, setViewMode] = useState<ViewMode>('days');
+    const [yearRangeStart, setYearRangeStart] = useState(1390);
 
     // Initialize from value
     useEffect(() => {
@@ -56,14 +59,22 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
             setSelectedDate({ jy, jm, jd });
             setCurrentYear(jy);
             setCurrentMonth(jm);
+            setYearRangeStart(Math.floor(jy / 12) * 12);
         } else {
-            // Default to today
             const today = new Date();
             const { jy, jm } = jalaali.toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
             setCurrentYear(jy);
             setCurrentMonth(jm);
+            setYearRangeStart(Math.floor(jy / 12) * 12);
         }
     }, [value]);
+
+    // Reset view mode when opening
+    useEffect(() => {
+        if (isOpen) {
+            setViewMode('days');
+        }
+    }, [isOpen]);
 
     const handleDayClick = (day: number) => {
         const { gy, gm, gd } = jalaali.toGregorian(currentYear, currentMonth, day);
@@ -71,6 +82,16 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
         setSelectedDate({ jy: currentYear, jm: currentMonth, jd: day });
         onChange(isoDate);
         setIsOpen(false);
+    };
+
+    const handleMonthClick = (month: number) => {
+        setCurrentMonth(month);
+        setViewMode('days');
+    };
+
+    const handleYearClick = (year: number) => {
+        setCurrentYear(year);
+        setViewMode('months');
     };
 
     const goToPrevMonth = () => {
@@ -95,11 +116,9 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
     const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
     const days: (number | null)[] = [];
 
-    // Add empty cells for days before first day
     for (let i = 0; i < firstDay; i++) {
         days.push(null);
     }
-    // Add days of month
     for (let d = 1; d <= daysInMonth; d++) {
         days.push(d);
     }
@@ -108,7 +127,9 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
         ? `${toPersianDigits(selectedDate.jy)}/${toPersianDigits(selectedDate.jm.toString().padStart(2, '0'))}/${toPersianDigits(selectedDate.jd.toString().padStart(2, '0'))}`
         : '';
 
-    // Calendar popup rendered via portal
+    // Generate years for year picker (12 years at a time)
+    const years = Array.from({ length: 12 }, (_, i) => yearRangeStart + i);
+
     const calendarPopup = isOpen && ReactDOM.createPortal(
         <div
             className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
@@ -120,53 +141,143 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-[color:var(--border-color)] bg-[color:var(--muted-surface)]">
-                    <button
-                        onClick={goToNextMonth}
-                        className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
-                    >
-                        <ChevronRight size={18} />
-                    </button>
-                    <div className="font-black text-[color:var(--text-primary)]">
-                        {persianMonths[currentMonth - 1]} {toPersianDigits(currentYear)}
+                    {viewMode === 'days' && (
+                        <>
+                            <button
+                                onClick={goToNextMonth}
+                                className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('months')}
+                                className="font-black text-[color:var(--text-primary)] hover:text-blue-600 transition-colors flex items-center gap-1"
+                            >
+                                {persianMonths[currentMonth - 1]} {toPersianDigits(currentYear)}
+                                <ChevronDown size={14} />
+                            </button>
+                            <button
+                                onClick={goToPrevMonth}
+                                className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                        </>
+                    )}
+                    {viewMode === 'months' && (
+                        <>
+                            <button
+                                onClick={() => setCurrentYear(currentYear + 1)}
+                                className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('years')}
+                                className="font-black text-[color:var(--text-primary)] hover:text-blue-600 transition-colors flex items-center gap-1"
+                            >
+                                {toPersianDigits(currentYear)}
+                                <ChevronDown size={14} />
+                            </button>
+                            <button
+                                onClick={() => setCurrentYear(currentYear - 1)}
+                                className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                        </>
+                    )}
+                    {viewMode === 'years' && (
+                        <>
+                            <button
+                                onClick={() => setYearRangeStart(yearRangeStart + 12)}
+                                className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                            <div className="font-black text-[color:var(--text-primary)]">
+                                {toPersianDigits(yearRangeStart)} - {toPersianDigits(yearRangeStart + 11)}
+                            </div>
+                            <button
+                                onClick={() => setYearRangeStart(yearRangeStart - 12)}
+                                className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {/* Days View */}
+                {viewMode === 'days' && (
+                    <>
+                        <div className="grid grid-cols-7 gap-1 p-3 border-b border-[color:var(--border-color)]">
+                            {persianWeekDays.map((day, i) => (
+                                <div key={i} className="text-center text-[10px] font-bold text-[color:var(--text-muted)] py-1">
+                                    {day}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 p-3">
+                            {days.map((day, i) => (
+                                <div key={i} className="aspect-square">
+                                    {day && (
+                                        <button
+                                            onClick={() => handleDayClick(day)}
+                                            className={`w-full h-full rounded-xl text-sm font-bold transition-all flex items-center justify-center
+                                                ${selectedDate?.jy === currentYear && selectedDate?.jm === currentMonth && selectedDate?.jd === day
+                                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                                                    : 'hover:bg-[color:var(--muted-surface)] text-[color:var(--text-primary)]'
+                                                }`}
+                                        >
+                                            {toPersianDigits(day)}
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {/* Months View */}
+                {viewMode === 'months' && (
+                    <div className="grid grid-cols-3 gap-2 p-4">
+                        {persianMonths.map((month, i) => (
+                            <button
+                                key={i}
+                                onClick={() => handleMonthClick(i + 1)}
+                                className={`py-3 rounded-xl text-sm font-bold transition-all
+                                    ${currentMonth === i + 1
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                                        : 'hover:bg-[color:var(--muted-surface)] text-[color:var(--text-primary)]'
+                                    }`}
+                            >
+                                {month}
+                            </button>
+                        ))}
                     </div>
-                    <button
-                        onClick={goToPrevMonth}
-                        className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] transition-colors"
-                    >
-                        <ChevronLeft size={18} />
-                    </button>
-                </div>
+                )}
 
-                {/* Weekday headers */}
-                <div className="grid grid-cols-7 gap-1 p-3 border-b border-[color:var(--border-color)]">
-                    {persianWeekDays.map((day, i) => (
-                        <div key={i} className="text-center text-[10px] font-bold text-[color:var(--text-muted)] py-1">
-                            {day}
-                        </div>
-                    ))}
-                </div>
+                {/* Years View */}
+                {viewMode === 'years' && (
+                    <div className="grid grid-cols-3 gap-2 p-4">
+                        {years.map((year) => (
+                            <button
+                                key={year}
+                                onClick={() => handleYearClick(year)}
+                                className={`py-3 rounded-xl text-sm font-bold transition-all
+                                    ${currentYear === year
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                                        : 'hover:bg-[color:var(--muted-surface)] text-[color:var(--text-primary)]'
+                                    }`}
+                            >
+                                {toPersianDigits(year)}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
-                {/* Days grid */}
-                <div className="grid grid-cols-7 gap-1 p-3">
-                    {days.map((day, i) => (
-                        <div key={i} className="aspect-square">
-                            {day && (
-                                <button
-                                    onClick={() => handleDayClick(day)}
-                                    className={`w-full h-full rounded-xl text-sm font-bold transition-all flex items-center justify-center
-                                        ${selectedDate?.jy === currentYear && selectedDate?.jm === currentMonth && selectedDate?.jd === day
-                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                                            : 'hover:bg-[color:var(--muted-surface)] text-[color:var(--text-primary)]'
-                                        }`}
-                                >
-                                    {toPersianDigits(day)}
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                {/* Today button */}
+                {/* Footer */}
                 <div className="p-3 border-t border-[color:var(--border-color)] flex gap-2">
                     <button
                         onClick={() => {
@@ -194,7 +305,6 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
 
     return (
         <>
-            {/* Input trigger */}
             <div
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-4 text-sm font-bold cursor-pointer flex items-center justify-between gap-2 hover:border-blue-500/50 transition-all text-[color:var(--text-primary)]"
