@@ -126,6 +126,8 @@ export const usePortfolio = ({
                 totalCostBasisToman: 0,
                 totalPnlToman: 0,
                 totalPnlPercent: 0,
+                totalRealizedPnlToman: 0,
+                totalUnrealizedPnlToman: 0,
                 assets: [],
             };
         }
@@ -148,8 +150,13 @@ export const usePortfolio = ({
 
         const assetsMap: Record<string, AssetSummary> = {};
 
-        transactions.forEach(tx => {
-            const { assetSymbol, quantity, buyPricePerUnit, buyCurrency, feesToman } = tx;
+        // Sort transactions chronologically for accurate realized PnL calculations
+        const sortedTransactions = [...transactions].sort(
+            (a, b) => new Date(a.buyDateTime).getTime() - new Date(b.buyDateTime).getTime()
+        );
+
+        sortedTransactions.forEach(tx => {
+            const { assetSymbol, quantity, buyPricePerUnit, buyCurrency, feesToman, type = 'BUY' } = tx;
             if (!assetsMap[assetSymbol]) {
                 const details = getAssetDetail(assetSymbol);
                 assetsMap[assetSymbol] = {
@@ -162,28 +169,49 @@ export const usePortfolio = ({
                     costBasisToman: 0,
                     pnlToman: 0,
                     pnlPercent: 0,
+                    realizedPnlToman: 0,
+                    unrealizedPnlToman: 0,
                     allocationPercent: 0,
                 };
             }
             const asset = assetsMap[assetSymbol];
-            asset.totalQuantity += quantity;
-            const txCostToman = buyCurrency === 'TOMAN'
-                ? (quantity * buyPricePerUnit) + feesToman
-                : (quantity * buyPricePerUnit * prices.usdToToman) + feesToman;
-            asset.costBasisToman += txCostToman;
+            const priceInToman = buyCurrency === 'TOMAN'
+                ? buyPricePerUnit
+                : buyPricePerUnit * (prices.usdToToman || 70000);
+
+            if (type === 'BUY') {
+                asset.totalQuantity += quantity;
+                const txCostToman = (quantity * priceInToman) + feesToman;
+                asset.costBasisToman += txCostToman;
+            } else if (type === 'SELL') {
+                const avgBuyPrice = asset.totalQuantity > 0 ? (asset.costBasisToman / asset.totalQuantity) : priceInToman;
+                const sellProceeds = (quantity * priceInToman) - feesToman;
+                const costOfSold = quantity * avgBuyPrice;
+                const realizedGain = sellProceeds - costOfSold;
+
+                asset.realizedPnlToman += realizedGain;
+                asset.totalQuantity = Math.max(0, asset.totalQuantity - quantity);
+                asset.costBasisToman = Math.max(0, asset.costBasisToman - costOfSold);
+            }
         });
 
         let runningTotalValue = 0;
         let runningTotalCost = 0;
+        let runningTotalRealized = 0;
+        let runningTotalUnrealized = 0;
 
         const assets = Object.values(assetsMap).map(asset => {
             asset.currentValueToman = asset.totalQuantity * asset.currentPriceToman;
-            asset.pnlToman = asset.currentValueToman - asset.costBasisToman;
+            asset.unrealizedPnlToman = asset.currentValueToman - asset.costBasisToman;
+            asset.pnlToman = asset.unrealizedPnlToman + asset.realizedPnlToman;
             asset.pnlPercent = asset.costBasisToman > 0
-                ? (asset.pnlToman / asset.costBasisToman) * 100
+                ? (asset.unrealizedPnlToman / asset.costBasisToman) * 100
                 : 0;
+
             runningTotalValue += asset.currentValueToman;
             runningTotalCost += asset.costBasisToman;
+            runningTotalRealized += asset.realizedPnlToman;
+            runningTotalUnrealized += asset.unrealizedPnlToman;
             return asset;
         });
 
@@ -196,10 +224,12 @@ export const usePortfolio = ({
         return {
             totalValueToman: runningTotalValue,
             totalCostBasisToman: runningTotalCost,
-            totalPnlToman: runningTotalValue - runningTotalCost,
+            totalPnlToman: runningTotalUnrealized + runningTotalRealized,
             totalPnlPercent: runningTotalCost > 0
-                ? ((runningTotalValue - runningTotalCost) / runningTotalCost) * 100
+                ? ((runningTotalUnrealized) / runningTotalCost) * 100
                 : 0,
+            totalRealizedPnlToman: runningTotalRealized,
+            totalUnrealizedPnlToman: runningTotalUnrealized,
             assets: assets.sort((a, b) => b.currentValueToman - a.currentValueToman),
         };
     }, [transactions, prices]);

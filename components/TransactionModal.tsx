@@ -37,6 +37,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   initialData
 }) => {
   const [assetSymbol, setAssetSymbol] = useState<AssetSymbol>('USD');
+  const [type, setType] = useState<TransactionType>('BUY');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -52,6 +53,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   useEffect(() => {
     if (initialData) {
+      setType(initialData.type || 'BUY');
       setAssetSymbol(initialData.assetSymbol);
       setQuantity(formatQuantityInput(initialData.quantity.toString()));
       setPrice(formatCurrencyInput(initialData.buyPricePerUnit.toString()));
@@ -61,6 +63,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setTags(initialData.tags || []);
     } else {
       // Default for new
+      setType('BUY');
       setAssetSymbol('USD');
       setQuantity('');
       setPrice('');
@@ -91,6 +94,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     onSave({
       ...(initialData?.id ? { id: initialData.id } : {}),
       assetSymbol,
+      type,
       quantity: parseQuantityInput(quantity),
       buyPricePerUnit: parseCurrencyInput(price),
       buyDateTime: new Date(date).toISOString(),
@@ -131,6 +135,33 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           </div>
 
           <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            
+            {/* Transaction Type: BUY vs SELL */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setType('BUY')}
+                className={`py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                  type === 'BUY'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                    : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
+                }`}
+              >
+                <span>خرید دارایی (Buy)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setType('SELL')}
+                className={`py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                  type === 'SELL'
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                    : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
+                }`}
+              >
+                <span>فروش دارایی (Sell)</span>
+              </button>
+            </div>
+
             {/* Asset Selection */}
             <div className="space-y-1.5">
               <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>انتخاب دارایی</label>
@@ -298,10 +329,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <button
               onClick={handleSave}
               disabled={!quantity || !price}
-              className="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50"
+              className={`w-full ${
+                type === 'SELL'
+                  ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                  : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+              } active:scale-95 text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl disabled:opacity-50`}
             >
               <Check size={18} strokeWidth={3} />
-              <span>{initialData ? 'بروزرسانی تغییرات' : 'ثبت تراکنش'}</span>
+              <span>
+                {initialData
+                  ? 'بروزرسانی تغییرات'
+                  : type === 'SELL'
+                  ? 'ثبت تراکنش فروش'
+                  : 'ثبت تراکنش خرید'}
+              </span>
             </button>
 
             {initialData && onDelete && (

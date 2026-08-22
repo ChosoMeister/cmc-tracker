@@ -48,6 +48,9 @@ const SettingsDrawer = lazy(() => import('./components/SettingsDrawer').then(mod
 const GoldBubbleModal = lazy(() => import('./components/GoldBubbleModal').then(module => ({ default: module.GoldBubbleModal })));
 const ExportImportModal = lazy(() => import('./components/ExportImportModal').then(module => ({ default: module.ExportImportModal })));
 const CommandPalette = lazy(() => import('./components/CommandPalette').then(module => ({ default: module.CommandPalette })));
+const DcaCalculatorModal = lazy(() => import('./components/DcaCalculatorModal').then(module => ({ default: module.DcaCalculatorModal })));
+const PortfolioHistoryChart = lazy(() => import('./components/PortfolioHistoryChart').then(module => ({ default: module.PortfolioHistoryChart })));
+import { CategoryPills, CategoryFilterType } from './components/CategoryPills';
 
 export default function App() {
   type SessionUser = { username: string; isAdmin: boolean; displayName?: string };
@@ -64,8 +67,10 @@ export default function App() {
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isGoldBubbleOpen, setIsGoldBubbleOpen] = useState(false);
+  const [isDcaModalOpen, setIsDcaModalOpen] = useState(false);
   const [isExportImportOpen, setIsExportImportOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [holdingCategory, setHoldingCategory] = useState<CategoryFilterType>('ALL');
   const [defaultAssetForNewTx, setDefaultAssetForNewTx] = useState<AssetSymbol | undefined>(undefined);
   const [txFilters, setTxFilters] = useState<TransactionFilters>({
     assetType: 'ALL',
@@ -281,7 +286,13 @@ export default function App() {
 
   const portfolioSummary: PortfolioSummary = useMemo(() => {
     if (!prices || transactions.length === 0) return {
-      totalValueToman: 0, totalCostBasisToman: 0, totalPnlToman: 0, totalPnlPercent: 0, assets: []
+      totalValueToman: 0,
+      totalCostBasisToman: 0,
+      totalPnlToman: 0,
+      totalPnlPercent: 0,
+      totalRealizedPnlToman: 0,
+      totalUnrealizedPnlToman: 0,
+      assets: []
     };
 
     const currentPriceMap: Record<string, number> = {
@@ -302,8 +313,12 @@ export default function App() {
 
     const assetsMap: Record<string, AssetSummary> = {};
 
-    transactions.forEach(tx => {
-      const { assetSymbol, quantity, buyPricePerUnit, buyCurrency, feesToman } = tx;
+    const sortedTxs = [...transactions].sort(
+      (a, b) => new Date(a.buyDateTime).getTime() - new Date(b.buyDateTime).getTime()
+    );
+
+    sortedTxs.forEach(tx => {
+      const { assetSymbol, quantity, buyPricePerUnit, buyCurrency, feesToman, type = 'BUY' } = tx;
       if (!assetsMap[assetSymbol]) {
         const details = getAssetDetail(assetSymbol);
         assetsMap[assetSymbol] = {
@@ -312,24 +327,49 @@ export default function App() {
           type: details.type,
           totalQuantity: 0,
           currentPriceToman: currentPriceMap[assetSymbol] || 0,
-          currentValueToman: 0, costBasisToman: 0, pnlToman: 0, pnlPercent: 0, allocationPercent: 0,
+          currentValueToman: 0,
+          costBasisToman: 0,
+          pnlToman: 0,
+          pnlPercent: 0,
+          realizedPnlToman: 0,
+          unrealizedPnlToman: 0,
+          allocationPercent: 0,
         };
       }
       const asset = assetsMap[assetSymbol];
-      asset.totalQuantity += quantity;
-      let txCostToman = buyCurrency === 'TOMAN' ? (quantity * buyPricePerUnit) + feesToman : (quantity * buyPricePerUnit * prices.usdToToman) + feesToman;
-      asset.costBasisToman += txCostToman;
+      const priceInToman = buyCurrency === 'TOMAN' ? buyPricePerUnit : buyPricePerUnit * (prices.usdToToman || 70000);
+
+      if (type === 'BUY') {
+        asset.totalQuantity += quantity;
+        const txCostToman = (quantity * priceInToman) + feesToman;
+        asset.costBasisToman += txCostToman;
+      } else if (type === 'SELL') {
+        const avgBuyPrice = asset.totalQuantity > 0 ? (asset.costBasisToman / asset.totalQuantity) : priceInToman;
+        const sellProceeds = (quantity * priceInToman) - feesToman;
+        const costOfSold = quantity * avgBuyPrice;
+        const realizedGain = sellProceeds - costOfSold;
+
+        asset.realizedPnlToman += realizedGain;
+        asset.totalQuantity = Math.max(0, asset.totalQuantity - quantity);
+        asset.costBasisToman = Math.max(0, asset.costBasisToman - costOfSold);
+      }
     });
 
     let runningTotalValue = 0;
     let runningTotalCost = 0;
+    let runningTotalRealized = 0;
+    let runningTotalUnrealized = 0;
 
     const assets = Object.values(assetsMap).map(asset => {
       asset.currentValueToman = asset.totalQuantity * asset.currentPriceToman;
-      asset.pnlToman = asset.currentValueToman - asset.costBasisToman;
-      asset.pnlPercent = asset.costBasisToman > 0 ? (asset.pnlToman / asset.costBasisToman) * 100 : 0;
+      asset.unrealizedPnlToman = asset.currentValueToman - asset.costBasisToman;
+      asset.pnlToman = asset.unrealizedPnlToman + asset.realizedPnlToman;
+      asset.pnlPercent = asset.costBasisToman > 0 ? (asset.unrealizedPnlToman / asset.costBasisToman) * 100 : 0;
+
       runningTotalValue += asset.currentValueToman;
       runningTotalCost += asset.costBasisToman;
+      runningTotalRealized += asset.realizedPnlToman;
+      runningTotalUnrealized += asset.unrealizedPnlToman;
       return asset;
     });
 
@@ -337,8 +377,10 @@ export default function App() {
     return {
       totalValueToman: runningTotalValue,
       totalCostBasisToman: runningTotalCost,
-      totalPnlToman: runningTotalValue - runningTotalCost,
-      totalPnlPercent: runningTotalCost > 0 ? ((runningTotalValue - runningTotalCost) / runningTotalCost) * 100 : 0,
+      totalPnlToman: runningTotalUnrealized + runningTotalRealized,
+      totalPnlPercent: runningTotalCost > 0 ? (runningTotalUnrealized / runningTotalCost) * 100 : 0,
+      totalRealizedPnlToman: runningTotalRealized,
+      totalUnrealizedPnlToman: runningTotalUnrealized,
       assets: assets.sort((a, b) => b.currentValueToman - a.currentValueToman)
     };
   }, [transactions, prices]);
@@ -354,7 +396,14 @@ export default function App() {
     setIsAdminPanelOpen(false);
   };
 
-  const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(txFilters.searchQuery) || a.symbol.includes(txFilters.searchQuery.toUpperCase()));
+  const filteredAssets = portfolioSummary.assets
+    .filter(a => {
+      if (holdingCategory !== 'ALL' && a.type !== holdingCategory) return false;
+      if (txFilters.searchQuery) {
+        return a.name.includes(txFilters.searchQuery) || a.symbol.includes(txFilters.searchQuery.toUpperCase());
+      }
+      return true;
+    });
   const cardSurface = 'bg-[var(--card-bg)] border border-slate-200/80 dark:border-slate-800/80 text-[color:var(--text-primary)]';
 
   const bestPerformer = portfolioSummary.assets.length > 0 ? portfolioSummary.assets[0] : null;
@@ -412,6 +461,14 @@ export default function App() {
                       lastUpdated={prices?.fetchedAt || Date.now()}
                       onRefresh={handlePriceUpdate}
                       prices={prices}
+                    />
+
+                    {/* Historical Portfolio Growth Chart */}
+                    <PortfolioHistoryChart
+                      transactions={transactions}
+                      prices={prices}
+                      currentTotalValue={portfolioSummary.totalValueToman}
+                      currentCostBasis={portfolioSummary.totalCostBasisToman}
                     />
 
                     {/* Best & Worst Performers Grid */}
@@ -574,6 +631,22 @@ export default function App() {
                       </button>
 
                       <button
+                        onClick={() => { haptic('light'); setIsDcaModalOpen(true); }}
+                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-all text-right group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-indigo-500/20">
+                            <Layers size={18} />
+                          </div>
+                          <div>
+                            <div className="font-black text-xs sm:text-sm">ماشین‌حساب میانگین‌کم‌کنی (DCA)</div>
+                            <div className="text-[10px] opacity-80">شبیه‌سازی خرید پله‌ای و میانگین قیمت سر‌به‌سر</div>
+                          </div>
+                        </div>
+                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                      </button>
+
+                      <button
                         onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
                         className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition-all text-right group"
                       >
@@ -662,6 +735,13 @@ export default function App() {
                   <span>حباب طلا</span>
                 </button>
                 <button
+                  onClick={() => { haptic('light'); setIsDcaModalOpen(true); }}
+                  className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Layers size={16} />
+                  <span>میانگین‌کم‌کنی</span>
+                </button>
+                <button
                   onClick={() => { haptic('success'); openNewTxWithAsset(); }}
                   className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-600/20"
                 >
@@ -670,6 +750,14 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* Asset Category Filter Pills */}
+            <CategoryPills
+              activeCategory={holdingCategory}
+              onSelectCategory={setHoldingCategory}
+              assets={portfolioSummary.assets}
+              totalPortfolioValue={portfolioSummary.totalValueToman}
+            />
 
             {filteredAssets.length === 0 ? (
               <EmptyState
@@ -1100,11 +1188,19 @@ export default function App() {
           onThemeChange={setTheme}
           onLogout={handleLogout}
           onOpenGoldBubble={() => setIsGoldBubbleOpen(true)}
+          onOpenDcaCalculator={() => setIsDcaModalOpen(true)}
           onOpenExportImport={() => setIsExportImportOpen(true)}
           onOpenAdmin={user.isAdmin ? () => setIsAdminPanelOpen(true) : undefined}
           isAdmin={user.isAdmin}
           onPriceUpdate={handlePriceUpdate}
           isPriceUpdating={isPriceUpdating}
+        />
+
+        <DcaCalculatorModal
+          isOpen={isDcaModalOpen}
+          onClose={() => setIsDcaModalOpen(false)}
+          portfolioAssets={portfolioSummary.assets}
+          prices={prices}
         />
 
         {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}

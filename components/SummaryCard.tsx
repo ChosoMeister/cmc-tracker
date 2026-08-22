@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { PortfolioSummary } from '../types';
 import { formatToman, formatPercent, formatNumber } from '../utils/formatting';
-import { Wallet, Clock, TrendingUp, TrendingDown, DollarSign, Coins } from 'lucide-react';
+import { Wallet, Clock, TrendingUp, TrendingDown, DollarSign, Coins, CheckCircle2 } from 'lucide-react';
 import { AnimatedToman, AnimatedPercent } from './AnimatedNumber';
 
 interface SummaryCardProps {
@@ -14,6 +14,7 @@ interface SummaryCardProps {
 
 const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshing, lastUpdated, onRefresh, prices }) => {
   const isProfit = summary.totalPnlToman >= 0;
+  const hasRealized = (summary.totalRealizedPnlToman || 0) !== 0;
 
   return (
     <div className="relative overflow-hidden mb-6 rounded-[28px] sm:rounded-[36px] border border-slate-200/80 dark:border-slate-800/80 shadow-xl dark:shadow-2xl transition-all duration-300">
@@ -71,7 +72,7 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
         </div>
 
         {/* Metric Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${hasRealized ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3 sm:gap-4`}>
           
           {/* Card 1: Total Cost Basis */}
           <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
@@ -84,7 +85,33 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
             </p>
           </div>
 
-          {/* Card 2: Live Dollar Rate */}
+          {/* Card 2: Unrealized PnL */}
+          {hasRealized && (
+            <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">سود باز (شناور)</p>
+                <TrendingUp size={16} className="text-blue-500" />
+              </div>
+              <p className={`font-black text-lg sm:text-xl ${summary.totalUnrealizedPnlToman >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {summary.totalUnrealizedPnlToman >= 0 ? '+' : ''}{formatToman(summary.totalUnrealizedPnlToman)} <span className="text-xs text-slate-400">ت</span>
+              </p>
+            </div>
+          )}
+
+          {/* Card 3: Realized PnL */}
+          {hasRealized && (
+            <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">سود محقق‌شده (سیو سود)</p>
+                <CheckCircle2 size={16} className="text-emerald-500" />
+              </div>
+              <p className={`font-black text-lg sm:text-xl ${summary.totalRealizedPnlToman >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {summary.totalRealizedPnlToman >= 0 ? '+' : ''}{formatToman(summary.totalRealizedPnlToman)} <span className="text-xs text-slate-400">ت</span>
+              </p>
+            </div>
+          )}
+
+          {/* Card 4: Live Dollar Rate */}
           <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">نرخ دلار آزاد</p>
@@ -95,16 +122,18 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
             </p>
           </div>
 
-          {/* Card 3: Live 18K Gold Rate */}
-          <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">طلای ۱۸ عیار (گرم)</p>
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+          {/* Card 5: Live 18K Gold Rate */}
+          {!hasRealized && (
+            <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">طلای ۱۸ عیار (گرم)</p>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              </div>
+              <p className="text-amber-600 dark:text-amber-400 font-black text-lg sm:text-xl" dir="ltr">
+                {formatNumber(prices?.gold18ToToman || 0, 0)} <span className="text-xs text-slate-400">تومان</span>
+              </p>
             </div>
-            <p className="text-amber-600 dark:text-amber-400 font-black text-lg sm:text-xl" dir="ltr">
-              {formatNumber(prices?.gold18ToToman || 0, 0)} <span className="text-xs text-slate-400">تومان</span>
-            </p>
-          </div>
+          )}
 
         </div>
 
@@ -117,6 +146,7 @@ export const SummaryCard = memo(SummaryCardComponent, (prevProps, nextProps) => 
   return (
     prevProps.summary.totalValueToman === nextProps.summary.totalValueToman &&
     prevProps.summary.totalPnlToman === nextProps.summary.totalPnlToman &&
+    prevProps.summary.totalRealizedPnlToman === nextProps.summary.totalRealizedPnlToman &&
     prevProps.isRefreshing === nextProps.isRefreshing &&
     prevProps.lastUpdated === nextProps.lastUpdated &&
     prevProps.prices?.usdToToman === nextProps.prices?.usdToToman &&

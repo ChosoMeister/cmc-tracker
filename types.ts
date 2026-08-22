@@ -2,11 +2,14 @@ export type AssetSymbol = string;
 export type AssetType = 'FIAT' | 'GOLD' | 'CRYPTO';
 export type Currency = 'TOMAN' | 'USD';
 
+export type TransactionType = 'BUY' | 'SELL';
+
 export interface Transaction {
   id: string;
   assetSymbol: AssetSymbol;
+  type?: TransactionType; // Defaults to 'BUY'
   quantity: number;
-  buyDateTime: string; // ISO string
+  buyDateTime: string; // ISO string (used as transaction timestamp)
   buyPricePerUnit: number;
   buyCurrency: Currency;
   feesToman: number;
@@ -25,6 +28,15 @@ export interface CoinBubbleInfo {
   bubbleToman: number;
   bubblePercent: number;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
+export interface HistoricalPortfolioPoint {
+  date: string;
+  jalaliDate: string;
+  totalValueToman: number;
+  totalCostBasisToman: number;
+  pnlToman: number;
+  pnlPercent: number;
 }
 
 export interface PriceData {
@@ -47,6 +59,8 @@ export interface AssetSummary {
   costBasisToman: number;
   pnlToman: number;
   pnlPercent: number;
+  realizedPnlToman: number;
+  unrealizedPnlToman: number;
   allocationPercent: number;
 }
 
@@ -55,6 +69,8 @@ export interface PortfolioSummary {
   totalCostBasisToman: number;
   totalPnlToman: number;
   totalPnlPercent: number;
+  totalRealizedPnlToman: number;
+  totalUnrealizedPnlToman: number;
   assets: AssetSummary[];
 }
 
@@ -162,11 +178,13 @@ const goldAssets = [
   { symbol: 'XAG', name: 'انس نقره (دلار)' },
 ];
 
-const baseAssets = [
+export const allAssets = [
   ...goldAssets.map(asset => ({ ...asset, type: 'GOLD' as AssetType })),
   ...currencyAssets.map(asset => ({ ...asset, type: 'FIAT' as AssetType })),
   ...cryptoAssets.map(asset => ({ ...asset, type: 'CRYPTO' as AssetType })),
 ];
+
+const baseAssets = allAssets;
 
 export const ASSET_DETAILS: Record<AssetSymbol, { name: string; type: AssetType }> = baseAssets.reduce((acc, asset) => {
   acc[asset.symbol] = { name: asset.name, type: asset.type };

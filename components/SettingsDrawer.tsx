@@ -30,6 +30,7 @@ interface SettingsDrawerProps {
   onThemeChange: (theme: ThemeOption) => void;
   onLogout: () => void;
   onOpenGoldBubble?: () => void;
+  onOpenDcaCalculator?: () => void;
   onOpenExportImport?: () => void;
   onOpenAdmin?: () => void;
   isAdmin?: boolean;
@@ -47,6 +48,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onThemeChange,
   onLogout,
   onOpenGoldBubble,
+  onOpenDcaCalculator,
   onOpenExportImport,
   onOpenAdmin,
   isAdmin,
@@ -137,6 +139,16 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   >
                     <Calculator size={18} className="text-amber-500 shrink-0" />
                     <span className="text-xs font-black">حباب طلا و سکه</span>
+                  </button>
+                )}
+                {onOpenDcaCalculator && (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); onOpenDcaCalculator(); }}
+                    className="p-3 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 flex items-center gap-2.5 text-right transition-all"
+                  >
+                    <Layers size={18} className="text-indigo-500 shrink-0" />
+                    <span className="text-xs font-black">میانگین‌کم‌کنی DCA</span>
                   </button>
                 )}
                 {onOpenExportImport && (
