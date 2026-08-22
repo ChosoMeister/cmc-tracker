@@ -22,7 +22,7 @@ const BottomNavComponent: React.FC<BottomNavProps> = ({ currentTab, onTabChange 
   }, [haptic, onTabChange]);
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[520px] px-6 z-[60] pb-safe">
+    <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[520px] px-6 z-[60] pb-safe">
       <div className="rounded-[32px] flex justify-around items-center py-4 px-2 shadow-2xl backdrop-blur-3xl backdrop-saturate-150 bg-white/40 dark:bg-black/30 border border-white/20 dark:border-white/10 ring-1 ring-white/30 dark:ring-white/5 transition-all duration-300">
         {tabs.map((tab) => {
           const Icon = tab.icon;

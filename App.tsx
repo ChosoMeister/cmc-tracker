@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
 import { Layout } from './components/Layout';
+import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { SummaryCard } from './components/SummaryCard';
 import { AllocationChart } from './components/AllocationChart';
@@ -8,10 +9,32 @@ import { SummaryCardSkeleton, AssetRowSkeleton } from './components/Skeleton';
 import { EmptyState } from './components/EmptyState';
 import { PullToRefresh } from './components/PullToRefresh';
 import { LoginPage } from './components/LoginPage';
-import { Transaction, PriceData, PortfolioSummary, AssetSummary, getAssetDetail } from './types';
+import { Transaction, PriceData, PortfolioSummary, AssetSummary, getAssetDetail, AssetSymbol } from './types';
 import { API } from './services/api';
 import * as PriceService from './services/priceService';
-import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle, RefreshCw, Calculator, Download, Search } from 'lucide-react';
+import { 
+  Plus, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  LogOut, 
+  Shield, 
+  Settings, 
+  Sparkles, 
+  UserCircle, 
+  RefreshCw, 
+  Calculator, 
+  Download, 
+  Search,
+  ExternalLink,
+  Edit2,
+  Trash2,
+  PieChart as PieChartIcon,
+  History,
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  ArrowRight
+} from 'lucide-react';
 import { formatToman, formatNumber, formatPercent } from './utils/formatting';
 import * as AuthService from './services/authService';
 import { useToast } from './components/Toast';
@@ -51,20 +74,18 @@ export default function App() {
   });
   const { haptic } = useHaptics();
   const { addToast } = useToast();
-  // Pull-to-refresh state
-  const [pullStartY, setPullStartY] = useState(0);
-  const [pullDistance, setPullDistance] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
   const [displayName, setDisplayName] = useState('');
-  const [theme, setTheme] = useState<ThemeOption>(() => {
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     if (typeof window === 'undefined') return 'light';
-    const stored = localStorage.getItem('theme') as ThemeOption | null;
+    const stored = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
     return stored || 'system';
   });
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+
   const fallbackSources = [
     { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
     { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
+    { title: 'شبکه اطلاع‌رسانی طلا و ارز', uri: 'https://tgju.org' },
   ];
 
   useEffect(() => {
@@ -201,7 +222,6 @@ export default function App() {
     setLoading(true);
     try {
       if (mode === 'replace') {
-        // Delete existing transactions and save new ones
         for (const t of transactions) {
           await API.deleteTransaction(user.username, t.id);
         }
@@ -209,7 +229,6 @@ export default function App() {
           await API.saveTransaction(user.username, t);
         }
       } else {
-        // Merge mode: Add new ones
         for (const t of importedTransactions) {
           await API.saveTransaction(user.username, t);
         }
@@ -247,7 +266,7 @@ export default function App() {
 
   const handleSaveTransaction = async (t: Transaction) => {
     if (!user) return;
-    const txToSave = t.id ? t : { ...t, id: Math.random().toString(36).substr(2, 9) };
+    const txToSave = t.id ? t : { ...t, id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) };
     await API.saveTransaction(user.username, txToSave as Transaction);
     const updated = await API.getTransactions(user.username);
     setTransactions(updated);
@@ -324,8 +343,6 @@ export default function App() {
     };
   }, [transactions, prices]);
 
-  type ThemeOption = 'light' | 'dark' | 'system';
-
   if (!sessionChecked) return null;
   if (!user) return <LoginPage onLoginSuccess={setUser} />;
 
@@ -338,179 +355,319 @@ export default function App() {
   };
 
   const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(txFilters.searchQuery) || a.symbol.includes(txFilters.searchQuery.toUpperCase()));
-  const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
-  const mutedText = 'text-[color:var(--text-muted)]';
-  const pillTone = 'bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]';
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'];
-  const sourceContainerTone = resolvedTheme === 'dark'
-    ? 'bg-gradient-to-r from-blue-950/50 via-blue-900/40 to-indigo-900/20 border-blue-900 text-blue-100'
-    : 'bg-blue-50/60 border-blue-100 text-blue-600';
-  const sourceBadgeTone = resolvedTheme === 'dark'
-    ? 'bg-blue-900/60 border-blue-800 text-blue-100 hover:bg-blue-800'
-    : 'bg-white border-blue-100 text-blue-600 hover:bg-blue-100';
+  const cardSurface = 'bg-[var(--card-bg)] border border-slate-200/80 dark:border-slate-800/80 text-[color:var(--text-primary)]';
+
+  const bestPerformer = portfolioSummary.assets.length > 0 ? portfolioSummary.assets[0] : null;
+  const worstPerformer = portfolioSummary.assets.length > 1 ? portfolioSummary.assets[portfolioSummary.assets.length - 1] : null;
 
   return (
     <Layout theme={resolvedTheme}>
-      <Suspense fallback={<div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+      <Navbar
+        user={user}
+        displayName={displayName}
+        currentTab={tab}
+        onTabChange={setTab}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenGoldBubble={() => setIsGoldBubbleOpen(true)}
+        onOpenExportImport={() => setIsExportImportOpen(true)}
+        onOpenSettings={() => setIsSettingsDrawerOpen(true)}
+        onOpenAdmin={user.isAdmin ? () => setIsAdminPanelOpen(true) : undefined}
+        onPriceUpdate={handlePriceUpdate}
+        isPriceUpdating={isPriceUpdating}
+        onOpenNewTx={() => openNewTxWithAsset()}
+        onLogout={handleLogout}
+        theme={theme}
+        resolvedTheme={resolvedTheme}
+        onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        holdingsCount={portfolioSummary.assets.length}
+        transactionsCount={transactions.length}
+      />
+
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        
+        {/* ================= TAB 1: OVERVIEW ================= */}
         {tab === 'overview' && (
           <PullToRefresh onRefresh={async () => { await handlePriceUpdate(); }} disabled={isPriceUpdating}>
-            <div className="p-4 space-y-4 animate-in fade-in duration-500 pb-20">
-              <div className="flex justify-between items-center mb-2 px-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                    <Shield size={16} className="text-white" />
-                  </div>
-                  <div>
-                    <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">{displayName || 'پنل مدیریت'}</span>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[10px] text-blue-600 font-bold uppercase">{user.username}</span>
-                      <span className="text-[8px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded hidden sm:flex items-center gap-0.5 border border-violet-200 dark:border-violet-500/20">
-                        <Sparkles size={8} /> Powered by AI
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  {/* Spotlight / Command Palette Button */}
-                  <button
-                    onClick={() => { haptic('light'); setIsCommandPaletteOpen(true); }}
-                    className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all flex items-center gap-1`}
-                    title="پالت دستورات سریع (Cmd+K)"
-                  >
-                    <Search size={16} className="text-blue-500" />
-                    <kbd className="hidden md:inline-block text-[9px] font-mono px-1 rounded bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]">⌘K</kbd>
-                  </button>
-
-                  {/* Gold Bubble Button */}
-                  <button
-                    onClick={() => { haptic('light'); setIsGoldBubbleOpen(true); }}
-                    className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}
-                    title="محاسبه‌گر حباب طلا و سکه"
-                  >
-                    <Calculator size={18} />
-                  </button>
-
-                  {/* Export / Import Button */}
-                  <button
-                    onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
-                    className={`${cardSurface} p-2.5 rounded-xl text-emerald-500 hover:opacity-90 transition-all`}
-                    title="خروجی و ورودی اکسل / بکاپ"
-                  >
-                    <Download size={18} />
-                  </button>
-
-                  <button
-                    onClick={() => { haptic('light'); setIsSettingsDrawerOpen(true); }}
-                    className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
-                    aria-label="تنظیمات حساب"
-                  >
-                    <UserCircle size={18} />
-                  </button>
-
-                  {user.isAdmin && (
-                    <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`} title="پنل مدیریت">
-                      <Shield size={18} />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => { haptic('medium'); handlePriceUpdate(); }}
-                    disabled={isPriceUpdating}
-                    className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-3.5 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
-                  >
-                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
-                    <Sparkles size={14} className={isPriceUpdating ? "animate-spin" : ""} />
-                    <span className="hidden sm:inline">بروزرسانی</span>
-                  </button>
-                </div>
-              </div>
-
+            <div className="animate-in fade-in duration-500">
+              
               {loading ? (
                 <SummaryCardSkeleton />
               ) : (
-                <>
-                  <SummaryCard
-                    summary={portfolioSummary}
-                    isRefreshing={isPriceUpdating}
-                    lastUpdated={prices?.fetchedAt || Date.now()}
-                    onRefresh={handlePriceUpdate}
-                    prices={prices}
-                  />
-                  <AllocationChart summary={portfolioSummary} />
-                </>
-              )}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  
+                  {/* Left Main Column (8 cols on desktop) */}
+                  <div className="lg:col-span-8 space-y-6">
+                    
+                    {/* Hero Portfolio Card */}
+                    <SummaryCard
+                      summary={portfolioSummary}
+                      isRefreshing={isPriceUpdating}
+                      lastUpdated={prices?.fetchedAt || Date.now()}
+                      onRefresh={handlePriceUpdate}
+                      prices={prices}
+                    />
 
-              {sources.length > 0 && (
-                <div className={`p-4 rounded-3xl border flex flex-col gap-3 mx-1 ${sourceContainerTone}`}>
-                  <span className="text-[10px] font-black uppercase tracking-widest">منابع معتبر قیمت گذاری:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {sources.map((s, i) => (
-                      <a
-                        key={i}
-                        href={s.uri}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`px-3 py-2 rounded-xl border text-[9px] font-bold transition-colors shadow-sm ${sourceBadgeTone}`}
+                    {/* Best & Worst Performers Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      
+                      {/* Best Performer */}
+                      <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-emerald-500/30`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black text-xs">
+                            <ArrowUpRight size={16} /> بهترین عملکرد سبد
+                          </span>
+                          {bestPerformer && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" dir="ltr">
+                              {formatPercent(bestPerformer.pnlPercent)}
+                            </span>
+                          )}
+                        </div>
+                        {bestPerformer ? (
+                          <div>
+                            <div className="font-black text-base sm:text-lg text-slate-800 dark:text-white flex items-center justify-between">
+                              <span>{bestPerformer.name}</span>
+                              <span className="text-xs text-slate-400 font-mono">{bestPerformer.symbol}</span>
+                            </div>
+                            <div className="text-xs font-bold text-slate-500 mt-1 flex justify-between">
+                              <span>سود خالص:</span>
+                              <span className="font-black text-emerald-600 dark:text-emerald-400" dir="ltr">+{formatToman(bestPerformer.pnlToman)} ت</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-slate-400 text-xs py-2 font-bold">تراکنشی ثبت نشده است</div>
+                        )}
+                      </div>
+
+                      {/* Worst Performer */}
+                      <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-rose-500/30`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-black text-xs">
+                            <ArrowDownRight size={16} /> کمترین بازدهی
+                          </span>
+                          {worstPerformer && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" dir="ltr">
+                              {formatPercent(worstPerformer.pnlPercent)}
+                            </span>
+                          )}
+                        </div>
+                        {worstPerformer ? (
+                          <div>
+                            <div className="font-black text-base sm:text-lg text-slate-800 dark:text-white flex items-center justify-between">
+                              <span>{worstPerformer.name}</span>
+                              <span className="text-xs text-slate-400 font-mono">{worstPerformer.symbol}</span>
+                            </div>
+                            <div className="text-xs font-bold text-slate-500 mt-1 flex justify-between">
+                              <span>سود / زیان:</span>
+                              <span className="font-black text-rose-600 dark:text-rose-400" dir="ltr">{formatToman(worstPerformer.pnlToman)} ت</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-slate-400 text-xs py-2 font-bold">تراکنش دوم ثبت نشده است</div>
+                        )}
+                      </div>
+
+                    </div>
+
+                    {/* Desktop Holdings Table Preview */}
+                    <div className={`${cardSurface} rounded-[28px] sm:rounded-[36px] p-5 sm:p-6 shadow-sm`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Layers size={18} className="text-blue-500" />
+                          <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-white">
+                            ترکیب دارایی‌های برتر
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() => { haptic('light'); setTab('holdings'); }}
+                          className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                        >
+                          <span>مشاهده همه</span>
+                          <ArrowRight size={14} className="rotate-180" />
+                        </button>
+                      </div>
+
+                      {portfolioSummary.assets.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-slate-400 text-xs font-bold">هنوز دارایی‌ای ثبت نکرده‌اید</p>
+                          <button
+                            onClick={() => openNewTxWithAsset()}
+                            className="mt-3 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+                          >
+                            + ثبت اولین خرید
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {portfolioSummary.assets.slice(0, 5).map((asset) => (
+                            <div
+                              key={asset.symbol}
+                              onClick={() => {
+                                haptic('light');
+                                setTab('transactions');
+                                setTxFilters(f => ({ ...f, searchQuery: asset.symbol }));
+                              }}
+                              className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs">
+                                  {asset.symbol.slice(0, 4)}
+                                </div>
+                                <div>
+                                  <div className="font-black text-sm text-slate-800 dark:text-white">
+                                    {asset.name}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 font-bold mt-0.5">
+                                    {formatNumber(asset.totalQuantity)} واحد
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="text-left">
+                                <div className="font-black text-sm text-slate-800 dark:text-white" dir="ltr">
+                                  {formatToman(asset.currentValueToman)} <span className="text-[10px] text-slate-400">ت</span>
+                                </div>
+                                <div className={`text-[11px] font-bold mt-0.5 ${asset.pnlToman >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} dir="ltr">
+                                  {asset.pnlToman >= 0 ? '+' : ''}{formatPercent(asset.pnlPercent)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  {/* Right Sidebar Column (4 cols on desktop) */}
+                  <div className="lg:col-span-4 space-y-6">
+                    
+                    {/* Allocation Donut Chart */}
+                    <AllocationChart summary={portfolioSummary} />
+
+                    {/* Quick Tools Box */}
+                    <div className={`${cardSurface} rounded-[28px] sm:rounded-[36px] p-5 sm:p-6 shadow-sm space-y-3`}>
+                      <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">
+                        دسترسی سریع به ابزارها
+                      </span>
+                      
+                      <button
+                        onClick={() => { haptic('light'); setIsGoldBubbleOpen(true); }}
+                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-700 dark:text-amber-300 transition-all text-right group"
                       >
-                        {s.title.slice(0, 30)}
-                      </a>
-                    ))}
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-amber-500/20">
+                            <Calculator size={18} />
+                          </div>
+                          <div>
+                            <div className="font-black text-xs sm:text-sm">محاسبه‌گر حباب طلا و سکه</div>
+                            <div className="text-[10px] opacity-80">بررسی حباب امامی، بهار، نیم، ربع و آبشده</div>
+                          </div>
+                        </div>
+                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                      </button>
+
+                      <button
+                        onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
+                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition-all text-right group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-emerald-500/20">
+                            <Download size={18} />
+                          </div>
+                          <div>
+                            <div className="font-black text-xs sm:text-sm">پشتیبان‌گیری و خروجی اکسل</div>
+                            <div className="text-[10px] opacity-80">دریافت فایل CSV سازگار با اکسل و JSON</div>
+                          </div>
+                        </div>
+                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                      </button>
+
+                      <button
+                        onClick={() => { haptic('light'); setIsCommandPaletteOpen(true); }}
+                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 text-blue-700 dark:text-blue-300 transition-all text-right group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-blue-500/20">
+                            <Search size={18} />
+                          </div>
+                          <div>
+                            <div className="font-black text-xs sm:text-sm">پالت دستورات سریع (⌘K)</div>
+                            <div className="text-[10px] opacity-80">ماشین حساب زنده تبدیل ارز و جستجو</div>
+                          </div>
+                        </div>
+                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                      </button>
+                    </div>
+
+                    {/* Price Sources Box */}
+                    <div className={`${cardSurface} rounded-[28px] sm:rounded-[36px] p-5 sm:p-6 shadow-sm`}>
+                      <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-3">
+                        منابع معتبر استعلام قیمت
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {(sources.length > 0 ? sources : fallbackSources).map((s, i) => (
+                          <a
+                            key={i}
+                            href={s.uri}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-slate-200 dark:border-slate-700 transition-all"
+                          >
+                            <span>{s.title}</span>
+                            <ExternalLink size={11} className="opacity-60" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+
                   </div>
+
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                      <ArrowUpRight size={14} />
-                      <span>بهترین عملکرد</span>
-                    </div>
-                    {portfolioSummary.assets[0] ? (
-                      <div className="mt-2">
-                        <div className="font-black text-[color:var(--text-primary)] text-sm truncate">{portfolioSummary.assets[0].name}</div>
-                        <div className="text-emerald-500 text-xs font-black mt-1" dir="ltr">{formatPercent(portfolioSummary.assets[0].pnlPercent)}</div>
-                      </div>
-                    ) : <div className="text-gray-300 text-xs mt-2 font-bold">دیتا موجود نیست</div>}
-                  </div>
-                </div>
-                <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-1.5 text-rose-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                      <ArrowDownRight size={14} />
-                      <span>ضعیف‌ترین عملکرد</span>
-                    </div>
-                    {portfolioSummary.assets.length > 1 ? (
-                      <div className="mt-2">
-                        <div className="font-black text-[color:var(--text-primary)] text-sm truncate">{portfolioSummary.assets[portfolioSummary.assets.length - 1].name}</div>
-                        <div className="text-rose-500 text-xs font-black mt-1" dir="ltr">{formatPercent(portfolioSummary.assets[portfolioSummary.assets.length - 1].pnlPercent)}</div>
-                      </div>
-                    ) : <div className="text-gray-300 text-xs mt-2 font-bold">دیتا موجود نیست</div>}
-                  </div>
-                </div>
-              </div>
             </div>
           </PullToRefresh>
         )}
 
+        {/* ================= TAB 2: HOLDINGS ================= */}
         {tab === 'holdings' && (
-          <div className="animate-in fade-in duration-300 pb-20">
-            <div className="sticky top-0 bg-[color:var(--card-bg)]/80 backdrop-blur-md z-40 px-4 py-4 shadow-sm border-b border-[color:var(--border-color)] flex gap-2">
-              <input
-                type="text"
-                placeholder="جستجو در دارایی‌ها..."
-                value={txFilters.searchQuery}
-                onChange={(e) => setTxFilters(f => ({ ...f, searchQuery: e.target.value }))}
-                className="flex-1 bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
-              />
-              <button
-                onClick={() => { haptic('light'); setIsGoldBubbleOpen(true); }}
-                className="p-3 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl"
-                title="حباب طلا و سکه"
-              >
-                <Calculator size={18} />
-              </button>
+          <div className="animate-in fade-in duration-300 space-y-6">
+            
+            {/* Search & Actions Bar */}
+            <div className={`${cardSurface} rounded-[28px] sm:rounded-[32px] p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3`}>
+              <div className="w-full sm:max-w-md relative">
+                <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="جستجو در نام یا نماد دارایی..."
+                  value={txFilters.searchQuery}
+                  onChange={(e) => setTxFilters(f => ({ ...f, searchQuery: e.target.value }))}
+                  className="w-full bg-slate-100 dark:bg-slate-900/80 rounded-2xl py-2.5 pr-10 pl-4 text-xs sm:text-sm font-bold focus:outline-none border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  onClick={() => { haptic('light'); setIsGoldBubbleOpen(true); }}
+                  className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Calculator size={16} />
+                  <span>حباب طلا</span>
+                </button>
+                <button
+                  onClick={() => { haptic('success'); openNewTxWithAsset(); }}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-600/20"
+                >
+                  <Plus size={16} strokeWidth={3} />
+                  <span>افزودن دارایی</span>
+                </button>
+              </div>
             </div>
+
             {filteredAssets.length === 0 ? (
               <EmptyState
                 type="holdings"
@@ -520,47 +677,168 @@ export default function App() {
                 onAction={() => openNewTxWithAsset()}
               />
             ) : (
-              <div>
-                {filteredAssets.map(asset => (
-                  <AssetRow key={asset.symbol} asset={asset} onClick={() => { haptic('light'); setTab('transactions'); setTxFilters(f => ({ ...f, searchQuery: asset.symbol })); }} />
-                ))}
-              </div>
+              <>
+                {/* Desktop Professional Data Table */}
+                <div className="hidden md:block overflow-hidden rounded-[28px] sm:rounded-[36px] border border-slate-200/80 dark:border-slate-800/80 bg-[var(--card-bg)] shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                          <th className="p-4 pr-6">دارایی / نماد</th>
+                          <th className="p-4">نوع</th>
+                          <th className="p-4 text-left">موجودی</th>
+                          <th className="p-4 text-left">قیمت روز</th>
+                          <th className="p-4 text-left">ارزش کل (تومان)</th>
+                          <th className="p-4 text-left">سود / زیان</th>
+                          <th className="p-4 text-left">سهم از سبد</th>
+                          <th className="p-4 pl-6 text-center">عملیات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                        {filteredAssets.map((asset) => (
+                          <tr 
+                            key={asset.symbol}
+                            className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors group"
+                          >
+                            <td className="p-4 pr-6">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs">
+                                  {asset.symbol.slice(0, 4)}
+                                </div>
+                                <div>
+                                  <div className="font-black text-sm text-slate-800 dark:text-white">
+                                    {asset.name}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-mono">
+                                    {asset.symbol}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            
+                            <td className="p-4">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                {asset.type === 'GOLD' ? 'طلا و مسکوکات' : asset.type === 'CRYPTO' ? 'ارز دیجیتال' : 'ارز فیات'}
+                              </span>
+                            </td>
+
+                            <td className="p-4 text-left font-black text-slate-800 dark:text-slate-200" dir="ltr">
+                              {formatNumber(asset.totalQuantity)}
+                            </td>
+
+                            <td className="p-4 text-left font-black text-slate-600 dark:text-slate-300" dir="ltr">
+                              {formatToman(asset.currentPriceToman)} ت
+                            </td>
+
+                            <td className="p-4 text-left font-black text-slate-900 dark:text-white text-sm" dir="ltr">
+                              {formatToman(asset.currentValueToman)} ت
+                            </td>
+
+                            <td className="p-4 text-left font-black" dir="ltr">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${
+                                asset.pnlToman >= 0 
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                              }`}>
+                                {asset.pnlToman >= 0 ? '+' : ''}{formatPercent(asset.pnlPercent)}
+                              </span>
+                            </td>
+
+                            <td className="p-4 text-left font-black text-slate-700 dark:text-slate-300" dir="ltr">
+                              {Math.round(asset.allocationPercent)}%
+                            </td>
+
+                            <td className="p-4 pl-6 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => openNewTxWithAsset(asset.symbol as AssetSymbol)}
+                                  className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-[11px] font-bold"
+                                  title="خرید مجدد این دارایی"
+                                >
+                                  + خرید
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    haptic('light');
+                                    setTab('transactions');
+                                    setTxFilters(f => ({ ...f, searchQuery: asset.symbol }));
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[11px] font-bold"
+                                  title="مشاهده تراکنش‌ها"
+                                >
+                                  تاریخچه
+                                </button>
+                              </div>
+                            </td>
+
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="md:hidden space-y-3">
+                  {filteredAssets.map(asset => (
+                    <AssetRow 
+                      key={asset.symbol} 
+                      asset={asset} 
+                      onClick={() => { 
+                        haptic('light'); 
+                        setTab('transactions'); 
+                        setTxFilters(f => ({ ...f, searchQuery: asset.symbol })); 
+                      }} 
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
 
+        {/* ================= TAB 3: TRANSACTIONS ================= */}
         {tab === 'transactions' && (
-          <div className="p-4 pb-24 animate-in fade-in duration-300">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
+          <div className="animate-in fade-in duration-300 space-y-6">
+            
+            {/* Header with Title & Quick Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <History size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white">
+                    تاریخچه تراکنش‌ها
+                  </h2>
+                  <p className="text-xs text-slate-400 font-bold mt-0.5">
+                    {transactions.length} تراکنش ثبت شده در پورتفوی
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
-                  className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-emerald-600 dark:text-emerald-400"
-                  title="خروجی و ورودی اکسل"
+                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 text-xs font-black flex items-center gap-1.5 shadow-sm"
+                  title="خروجی و ورودی اکسل / بکاپ"
                 >
-                  <Download size={18} />
+                  <Download size={16} />
+                  <span className="hidden sm:inline">خروجی اکسل</span>
                 </button>
-                <button
-                  onClick={() => { haptic('medium'); setIsSettingsDrawerOpen(true); }}
-                  className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]"
-                  aria-label="تنظیمات"
-                >
-                  <Settings size={18} />
-                </button>
+
                 <button
                   onClick={() => { haptic('success'); openNewTxWithAsset(); }}
-                  className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white border border-white/10 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 transition-all"
-                  aria-label="افزودن تراکنش جدید"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-600/25 active:scale-95 transition-all"
                 >
-                  <Plus size={18} strokeWidth={3} />
+                  <Plus size={16} strokeWidth={3} />
+                  <span>ثبت تراکنش جدید</span>
                 </button>
-                <button onClick={() => { haptic('error'); handleLogout(); }} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
               </div>
             </div>
 
-            {/* Transaction Filters with Wallets & Tags */}
-            <div className="mb-4">
+            {/* Transaction Filter Toolbar */}
+            <div className={`${cardSurface} rounded-[28px] sm:rounded-[32px] p-4 sm:p-5 shadow-sm`}>
               <TransactionFilter
                 filters={txFilters}
                 onFiltersChange={setTxFilters}
@@ -583,62 +861,193 @@ export default function App() {
                 txFilters,
                 (symbol) => getAssetDetail(symbol).type
               );
+
               return filteredTxs.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-[color:var(--text-muted)] font-bold">تراکنشی با این فیلترها یافت نشد</p>
+                <div className={`${cardSurface} text-center py-16 rounded-[32px]`}>
+                  <p className="text-slate-400 font-bold text-sm">تراکنشی با این مشخصات یافت نشد</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {filteredTxs.map(tx => (
-                    <div
-                      key={tx.id}
-                      onClick={() => { haptic('light'); setEditingTransaction(tx); setIsTxModalOpen(true); }}
-                      className={`${cardSurface} p-4 rounded-3xl flex flex-col gap-2 cursor-pointer hover:border-blue-500/40 transition-all shadow-sm`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-[10px]">
-                            {tx.assetSymbol}
-                          </div>
-                          <div>
-                            <div className="font-black text-sm text-[color:var(--text-primary)]">
-                              {getAssetDetail(tx.assetSymbol).name}
-                            </div>
-                            <div className={`text-[10px] font-bold mt-0.5 ${mutedText}`} dir="ltr">
-                              {new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">
-                          {formatNumber(tx.quantity)}
-                        </div>
-                      </div>
+                <>
+                  {/* Desktop Data Table */}
+                  <div className="hidden md:block overflow-hidden rounded-[28px] sm:rounded-[36px] border border-slate-200/80 dark:border-slate-800/80 bg-[var(--card-bg)] shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-right border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                            <th className="p-4 pr-6">تاریخ</th>
+                            <th className="p-4">دارایی / نماد</th>
+                            <th className="p-4 text-left">مقدار</th>
+                            <th className="p-4 text-left">قیمت واحد</th>
+                            <th className="p-4 text-left">هزینه کل</th>
+                            <th className="p-4">صرافی / ولت</th>
+                            <th className="p-4">برچسب‌ها</th>
+                            <th className="p-4">یادداشت</th>
+                            <th className="p-4 pl-6 text-center">عملیات</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                          {filteredTxs.map((tx) => {
+                            const detail = getAssetDetail(tx.assetSymbol);
+                            const totalCost = tx.buyCurrency === 'TOMAN' 
+                              ? (tx.quantity * tx.buyPricePerUnit) + (tx.feesToman || 0)
+                              : (tx.quantity * tx.buyPricePerUnit * (prices?.usdToToman || 0)) + (tx.feesToman || 0);
 
-                      {/* Wallet and Tags Pills */}
-                      {(tx.wallet || (tx.tags && tx.tags.length > 0)) && (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[color:var(--border-color)]">
-                          {tx.wallet && (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                              📍 {tx.wallet}
-                            </span>
-                          )}
-                          {tx.tags?.map(t => (
-                            <span key={t} className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                            return (
+                              <tr 
+                                key={tx.id}
+                                className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors group"
+                              >
+                                <td className="p-4 pr-6 text-slate-600 dark:text-slate-300 font-bold" dir="ltr">
+                                  {new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}
+                                </td>
+
+                                <td className="p-4">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-[10px]">
+                                      {tx.assetSymbol.slice(0, 3)}
+                                    </div>
+                                    <div>
+                                      <div className="font-black text-slate-800 dark:text-white">
+                                        {detail.name}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-mono">
+                                        {tx.assetSymbol}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="p-4 text-left font-black text-slate-800 dark:text-slate-100" dir="ltr">
+                                  {formatNumber(tx.quantity)}
+                                </td>
+
+                                <td className="p-4 text-left font-bold text-slate-600 dark:text-slate-300" dir="ltr">
+                                  {formatNumber(tx.buyPricePerUnit)} {tx.buyCurrency === 'USD' ? '$' : 'ت'}
+                                </td>
+
+                                <td className="p-4 text-left font-black text-slate-900 dark:text-white" dir="ltr">
+                                  {formatToman(totalCost)} ت
+                                </td>
+
+                                <td className="p-4">
+                                  {tx.wallet ? (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                      {tx.wallet}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 text-[10px]">-</span>
+                                  )}
+                                </td>
+
+                                <td className="p-4">
+                                  {tx.tags && tx.tags.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {tx.tags.map(tag => (
+                                        <span key={tag} className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400 text-[10px]">-</span>
+                                  )}
+                                </td>
+
+                                <td className="p-4 text-slate-400 text-[11px] truncate max-w-[120px]">
+                                  {tx.note || '-'}
+                                </td>
+
+                                <td className="p-4 pl-6 text-center">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        haptic('light');
+                                        setEditingTransaction(tx);
+                                        setIsTxModalOpen(true);
+                                      }}
+                                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                                      title="ویرایش تراکنش"
+                                    >
+                                      <Edit2 size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        haptic('error');
+                                        if (window.confirm('آیا از حذف این تراکنش اطمینان دارید؟')) {
+                                          handleDeleteTransaction(tx.id);
+                                        }
+                                      }}
+                                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 transition-colors"
+                                      title="حذف تراکنش"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
-                </div>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="md:hidden space-y-3">
+                    {filteredTxs.map(tx => (
+                      <div
+                        key={tx.id}
+                        onClick={() => { haptic('light'); setEditingTransaction(tx); setIsTxModalOpen(true); }}
+                        className={`${cardSurface} p-4 rounded-3xl flex flex-col gap-2 cursor-pointer hover:border-blue-500/40 transition-all shadow-sm`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-[10px]">
+                              {tx.assetSymbol}
+                            </div>
+                            <div>
+                              <div className="font-black text-sm text-[color:var(--text-primary)]">
+                                {getAssetDetail(tx.assetSymbol).name}
+                              </div>
+                              <div className="text-[10px] font-bold text-slate-400 mt-0.5" dir="ltr">
+                                {new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">
+                            {formatNumber(tx.quantity)}
+                          </div>
+                        </div>
+
+                        {(tx.wallet || (tx.tags && tx.tags.length > 0)) && (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[color:var(--border-color)]">
+                            {tx.wallet && (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                📍 {tx.wallet}
+                              </span>
+                            )}
+                            {tx.tags?.map(t => (
+                              <span key={t} className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
               );
             })()}
+
           </div>
         )}
 
+        {/* Floating Mobile Bottom Nav */}
         <BottomNav currentTab={tab} onTabChange={setTab} />
 
+        {/* Lazy Modals & Drawers */}
         <TransactionModal
           isOpen={isTxModalOpen}
           initialData={editingTransaction}
@@ -688,6 +1097,7 @@ export default function App() {
           onThemeChange={setTheme}
           onLogout={handleLogout}
         />
+
         {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
       </Suspense>
     </Layout>
