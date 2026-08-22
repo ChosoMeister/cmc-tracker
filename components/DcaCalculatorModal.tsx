@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { X, Calculator, ArrowDownRight, ArrowUpRight, Sparkles, TrendingDown, Layers, HelpCircle } from 'lucide-react';
+import { X, Calculator, ArrowDownRight, ArrowUpRight, Sparkles, TrendingDown, Layers, HelpCircle, Check } from 'lucide-react';
 import { AssetSummary, PriceData, allAssets, getAssetDetail } from '../types';
-import { formatNumber, formatPercent, formatToman } from '../utils/formatting';
+import { formatNumber, formatPercent, formatToman, formatCurrencyInput, parseCurrencyInput, toEnglishDigits } from '../utils/formatting';
 
 interface DcaCalculatorModalProps {
   isOpen: boolean;
@@ -16,9 +16,9 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
   portfolioAssets,
   prices,
 }) => {
-  const defaultSymbol = portfolioAssets.length > 0 ? portfolioAssets[0].symbol : 'USD';
+  const defaultSymbol = portfolioAssets.length > 0 ? portfolioAssets[0].symbol : 'GOLD18';
   const [selectedSymbol, setSelectedSymbol] = useState<string>(defaultSymbol);
-  const [newAmountToman, setNewAmountToman] = useState<string>('50000000'); // 50M Toman
+  const [newAmountToman, setNewAmountToman] = useState<string>('50,000,000');
   const [customPriceToman, setCustomPriceToman] = useState<string>('');
 
   const currentPriceMap: Record<string, number> = useMemo(() => {
@@ -39,8 +39,8 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
   const currentCostBasis = activeHolding?.costBasisToman || 0;
   const currentAvgPrice = currentQty > 0 ? (currentCostBasis / currentQty) : livePrice;
 
-  const simulatedPrice = parseFloat(customPriceToman.replace(/,/g, '')) || livePrice;
-  const simulatedInvestToman = parseFloat(newAmountToman.replace(/,/g, '')) || 0;
+  const simulatedPrice = parseCurrencyInput(customPriceToman) || livePrice;
+  const simulatedInvestToman = parseCurrencyInput(newAmountToman);
 
   // New Units to buy
   const newUnits = simulatedPrice > 0 ? (simulatedInvestToman / simulatedPrice) : 0;
@@ -53,6 +53,18 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
     : 0;
 
   const assetInfo = getAssetDetail(selectedSymbol);
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const formatted = formatCurrencyInput(val);
+    setNewAmountToman(formatted);
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const formatted = formatCurrencyInput(val);
+    setCustomPriceToman(formatted);
+  };
 
   if (!isOpen) return null;
 
@@ -127,25 +139,49 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
               <label className="text-xs font-black text-slate-400 px-1">مبلغ خرید جدید (تومان)</label>
               <input
                 type="text"
-                value={formatNumber(parseFloat(newAmountToman) || 0)}
-                onChange={(e) => setNewAmountToman(e.target.value.replace(/,/g, ''))}
+                value={newAmountToman}
+                onChange={handleAmountChange}
                 className="w-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-white"
                 placeholder="۵۰,۰۰۰,۰۰۰"
+                dir="ltr"
               />
+              {/* Quick Amount Presets */}
+              <div className="flex gap-1.5 pt-1">
+                {[10000000, 25000000, 50000000, 100000000].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setNewAmountToman(formatCurrencyInput(val))}
+                    className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-[10px] font-bold text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all"
+                  >
+                    {val >= 100000000 ? `${val / 100000000}۰۰ م` : `${val / 1000000} م`}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-400 px-1 flex items-center justify-between">
                 <span>قیمت واحد خرید (تومان)</span>
-                <span className="text-[10px] text-blue-500 font-bold">لحظه‌ای: {formatToman(livePrice)}</span>
+                <button
+                  type="button"
+                  onClick={() => setCustomPriceToman(formatCurrencyInput(Math.round(livePrice)))}
+                  className="text-[10px] text-blue-500 font-bold hover:underline"
+                >
+                  لحظه‌ای: {formatToman(livePrice)}
+                </button>
               </label>
               <input
                 type="text"
-                value={customPriceToman ? formatNumber(parseFloat(customPriceToman) || 0) : ''}
-                onChange={(e) => setCustomPriceToman(e.target.value.replace(/,/g, ''))}
-                placeholder={formatNumber(livePrice)}
+                value={customPriceToman}
+                onChange={handlePriceChange}
+                placeholder={formatCurrencyInput(Math.round(livePrice))}
                 className="w-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-white"
+                dir="ltr"
               />
+              <span className="text-[10px] text-slate-400 block px-1">
+                (در صورت خالی بودن، قیمت لحظه‌ای لحاظ می‌شود)
+              </span>
             </div>
           </div>
 
@@ -199,14 +235,16 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
         </div>
 
         {/* Footer */}
-        <footer className="p-4 bg-slate-50/80 dark:bg-slate-900/60 border-t border-slate-200/80 dark:border-slate-800/80 flex justify-end">
+        <footer className="p-4 border-t border-slate-200/80 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/50 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="px-6 py-2.5 rounded-2xl bg-blue-600 text-white font-black text-xs hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20"
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-lg shadow-blue-600/25 transition-all"
           >
             بستن ماشین‌حساب
           </button>
         </footer>
+
       </div>
     </div>
   );

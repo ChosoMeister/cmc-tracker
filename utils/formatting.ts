@@ -22,16 +22,28 @@ export const formatPercent = (value: number): string => {
   }).format(value)}٪`;
 };
 
-export const formatCurrencyInput = (val: string) => {
-  if (!val) return "";
-  const cleanVal = val.toString().replace(/,/g, "");
-  if (isNaN(parseFloat(cleanVal))) return "";
-  return cleanVal.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+export const toEnglishDigits = (str: string): string => {
+  if (!str) return "";
+  return str
+    .toString()
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
 };
 
-export const parseCurrencyInput = (val: string) => {
+export const formatCurrencyInput = (val: string | number) => {
+  if (val === undefined || val === null || val === "") return "";
+  const cleanVal = toEnglishDigits(val.toString()).replace(/,/g, "").trim();
+  if (!cleanVal || isNaN(Number(cleanVal))) return cleanVal;
+  const parts = cleanVal.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.join('.');
+};
+
+export const parseCurrencyInput = (val: string | number) => {
   if (!val) return 0;
-  return parseFloat(val.toString().replace(/,/g, ""));
+  const cleanVal = toEnglishDigits(val.toString()).replace(/,/g, "").trim();
+  const num = parseFloat(cleanVal);
+  return isNaN(num) ? 0 : num;
 };
 
 const CRYPTO_ICON_CDN_BASE = 'https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color';
