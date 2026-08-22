@@ -7,11 +7,15 @@ export interface TransactionFilters {
     assetType: AssetType | 'ALL';
     dateRange: 'all' | 'week' | 'month' | 'quarter' | 'year';
     searchQuery: string;
+    wallet?: string;
+    tag?: string;
 }
 
 interface TransactionFilterProps {
     filters: TransactionFilters;
     onFiltersChange: (filters: TransactionFilters) => void;
+    availableWallets?: string[];
+    availableTags?: string[];
 }
 
 const assetTypeOptions: { value: AssetType | 'ALL'; label: string }[] = [
@@ -29,16 +33,27 @@ const dateRangeOptions: { value: TransactionFilters['dateRange']; label: string 
     { value: 'year', label: 'سال اخیر' },
 ];
 
-const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({ filters, onFiltersChange }) => {
+const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
+    filters,
+    onFiltersChange,
+    availableWallets = [],
+    availableTags = [],
+}) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const hasActiveFilters = filters.assetType !== 'ALL' || filters.dateRange !== 'all';
+    const hasActiveFilters =
+        filters.assetType !== 'ALL' ||
+        filters.dateRange !== 'all' ||
+        Boolean(filters.wallet) ||
+        Boolean(filters.tag);
 
     const clearFilters = () => {
         onFiltersChange({
             assetType: 'ALL',
             dateRange: 'all',
             searchQuery: filters.searchQuery,
+            wallet: undefined,
+            tag: undefined,
         });
     };
 
@@ -48,7 +63,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({ filters,
             <div className="flex gap-2">
                 <input
                     type="text"
-                    placeholder="جستجو..."
+                    placeholder="جستجو در نماد، ولت، برچسب..."
                     value={filters.searchQuery}
                     onChange={(e) => onFiltersChange({ ...filters, searchQuery: e.target.value })}
                     className="flex-1 bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
@@ -110,6 +125,70 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({ filters,
                         </div>
                     </div>
 
+                    {/* Wallets Filter */}
+                    {availableWallets.length > 0 && (
+                        <div>
+                            <label className="text-[10px] font-black text-[color:var(--text-muted)] uppercase tracking-wider mb-2 block">
+                                محل نگهداری / ولت
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => onFiltersChange({ ...filters, wallet: undefined })}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${!filters.wallet
+                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                            : 'bg-[color:var(--card-bg)] text-[color:var(--text-muted)] border border-[color:var(--border-color)]'
+                                        }`}
+                                >
+                                    همه
+                                </button>
+                                {availableWallets.map((w) => (
+                                    <button
+                                        key={w}
+                                        onClick={() => onFiltersChange({ ...filters, wallet: filters.wallet === w ? undefined : w })}
+                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filters.wallet === w
+                                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                                : 'bg-[color:var(--card-bg)] text-[color:var(--text-muted)] border border-[color:var(--border-color)]'
+                                            }`}
+                                    >
+                                        {w}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tags Filter */}
+                    {availableTags.length > 0 && (
+                        <div>
+                            <label className="text-[10px] font-black text-[color:var(--text-muted)] uppercase tracking-wider mb-2 block">
+                                برچسب‌ها
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => onFiltersChange({ ...filters, tag: undefined })}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${!filters.tag
+                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                            : 'bg-[color:var(--card-bg)] text-[color:var(--text-muted)] border border-[color:var(--border-color)]'
+                                        }`}
+                                >
+                                    همه
+                                </button>
+                                {availableTags.map((t) => (
+                                    <button
+                                        key={t}
+                                        onClick={() => onFiltersChange({ ...filters, tag: filters.tag === t ? undefined : t })}
+                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filters.tag === t
+                                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                                : 'bg-[color:var(--card-bg)] text-[color:var(--text-muted)] border border-[color:var(--border-color)]'
+                                            }`}
+                                    >
+                                        {t}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Clear Filters */}
                     {hasActiveFilters && (
                         <button
@@ -142,6 +221,22 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({ filters,
                             </button>
                         </span>
                     )}
+                    {filters.wallet && (
+                        <span className="text-[10px] font-bold px-2.5 py-1.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center gap-1">
+                            ولت: {filters.wallet}
+                            <button onClick={() => onFiltersChange({ ...filters, wallet: undefined })}>
+                                <X size={12} />
+                            </button>
+                        </span>
+                    )}
+                    {filters.tag && (
+                        <span className="text-[10px] font-bold px-2.5 py-1.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center gap-1">
+                            تگ: {filters.tag}
+                            <button onClick={() => onFiltersChange({ ...filters, tag: undefined })}>
+                                <X size={12} />
+                            </button>
+                        </span>
+                    )}
                 </div>
             )}
         </div>
@@ -151,16 +246,21 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({ filters,
 export const TransactionFilter = memo(TransactionFilterComponent);
 
 // Helper function to filter transactions
-export const filterTransactions = <T extends { assetSymbol: string; buyDateTime: string }>(
+export const filterTransactions = <T extends { assetSymbol: string; buyDateTime: string; wallet?: string; tags?: string[]; note?: string }>(
     transactions: T[],
     filters: TransactionFilters,
     getAssetType: (symbol: string) => string
 ): T[] => {
     return transactions.filter((tx) => {
-        // Search filter
+        // Search filter (Symbol, Note, Wallet, Tags)
         if (filters.searchQuery) {
             const query = filters.searchQuery.toLowerCase();
-            if (!tx.assetSymbol.toLowerCase().includes(query)) {
+            const symbolMatch = tx.assetSymbol.toLowerCase().includes(query);
+            const walletMatch = tx.wallet?.toLowerCase().includes(query);
+            const noteMatch = tx.note?.toLowerCase().includes(query);
+            const tagMatch = tx.tags?.some(t => t.toLowerCase().includes(query));
+
+            if (!symbolMatch && !walletMatch && !noteMatch && !tagMatch) {
                 return false;
             }
         }
@@ -171,6 +271,16 @@ export const filterTransactions = <T extends { assetSymbol: string; buyDateTime:
             if (type !== filters.assetType) {
                 return false;
             }
+        }
+
+        // Wallet filter
+        if (filters.wallet && tx.wallet !== filters.wallet) {
+            return false;
+        }
+
+        // Tag filter
+        if (filters.tag && (!tx.tags || !tx.tags.includes(filters.tag))) {
+            return false;
         }
 
         // Date range filter

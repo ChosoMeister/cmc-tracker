@@ -11,7 +11,7 @@ import { LoginPage } from './components/LoginPage';
 import { Transaction, PriceData, PortfolioSummary, AssetSummary, getAssetDetail } from './types';
 import { API } from './services/api';
 import * as PriceService from './services/priceService';
-import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle, RefreshCw } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle, RefreshCw, Calculator, Download, Search } from 'lucide-react';
 import { formatToman, formatNumber, formatPercent } from './utils/formatting';
 import * as AuthService from './services/authService';
 import { useToast } from './components/Toast';
@@ -22,6 +22,9 @@ import { useHaptics } from './hooks/useHaptics';
 const TransactionModal = lazy(() => import('./components/TransactionModal').then(module => ({ default: module.TransactionModal })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 const SettingsDrawer = lazy(() => import('./components/SettingsDrawer').then(module => ({ default: module.SettingsDrawer })));
+const GoldBubbleModal = lazy(() => import('./components/GoldBubbleModal').then(module => ({ default: module.GoldBubbleModal })));
+const ExportImportModal = lazy(() => import('./components/ExportImportModal').then(module => ({ default: module.ExportImportModal })));
+const CommandPalette = lazy(() => import('./components/CommandPalette').then(module => ({ default: module.CommandPalette })));
 
 export default function App() {
   type SessionUser = { username: string; isAdmin: boolean; displayName?: string };
@@ -37,6 +40,10 @@ export default function App() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isGoldBubbleOpen, setIsGoldBubbleOpen] = useState(false);
+  const [isExportImportOpen, setIsExportImportOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [defaultAssetForNewTx, setDefaultAssetForNewTx] = useState<AssetSymbol | undefined>(undefined);
   const [txFilters, setTxFilters] = useState<TransactionFilters>({
     assetType: 'ALL',
     dateRange: 'all',
@@ -161,6 +168,76 @@ export default function App() {
     }
   };
 
+  // Global keyboard shortcut for Command Palette (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const availableWallets = useMemo(() => {
+    const set = new Set<string>();
+    transactions.forEach(t => {
+      if (t.wallet) set.add(t.wallet);
+    });
+    return Array.from(set);
+  }, [transactions]);
+
+  const availableTags = useMemo(() => {
+    const set = new Set<string>();
+    transactions.forEach(t => {
+      if (t.tags) t.tags.forEach(tag => set.add(tag));
+    });
+    return Array.from(set);
+  }, [transactions]);
+
+  const handleImportSuccess = async (importedTransactions: Transaction[], mode: 'replace' | 'merge') => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      if (mode === 'replace') {
+        // Delete existing transactions and save new ones
+        for (const t of transactions) {
+          await API.deleteTransaction(user.username, t.id);
+        }
+        for (const t of importedTransactions) {
+          await API.saveTransaction(user.username, t);
+        }
+      } else {
+        // Merge mode: Add new ones
+        for (const t of importedTransactions) {
+          await API.saveTransaction(user.username, t);
+        }
+      }
+      const updated = await API.getTransactions(user.username);
+      setTransactions(updated);
+    } catch (error) {
+      console.error('Failed to import transactions:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openNewTxWithAsset = (defaultSymbol?: AssetSymbol) => {
+    setDefaultAssetForNewTx(defaultSymbol);
+    setEditingTransaction(defaultSymbol ? {
+      id: '',
+      assetSymbol: defaultSymbol,
+      quantity: 0,
+      buyPricePerUnit: 0,
+      buyDateTime: new Date().toISOString(),
+      buyCurrency: getAssetDetail(defaultSymbol).type === 'CRYPTO' ? 'USD' : 'TOMAN',
+      feesToman: 0,
+    } : null);
+    setIsTxModalOpen(true);
+  };
+
   const handleDisplayNameChange = (name: string) => {
     setDisplayName(name);
     if (user) {
@@ -247,11 +324,6 @@ export default function App() {
     };
   }, [transactions, prices]);
 
-  // Type for ThemeOption as it is needed in state definition but imported from lazy module issues.
-  // We can redfine or trust TS inference or just use string literal if needed.
-  // The original code imported it. I will define it locally to avoid import issues with lazy loading if the file isn't split cleanly.
-  // Actually, 'ThemeOption' is just a type. We can likely import it safely.
-  // Ideally we should move types to types.ts but I will stick to minimal changes.
   type ThemeOption = 'light' | 'dark' | 'system';
 
   if (!sessionChecked) return null;
@@ -298,7 +370,35 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Spotlight / Command Palette Button */}
+                  <button
+                    onClick={() => { haptic('light'); setIsCommandPaletteOpen(true); }}
+                    className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all flex items-center gap-1`}
+                    title="پالت دستورات سریع (Cmd+K)"
+                  >
+                    <Search size={16} className="text-blue-500" />
+                    <kbd className="hidden md:inline-block text-[9px] font-mono px-1 rounded bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]">⌘K</kbd>
+                  </button>
+
+                  {/* Gold Bubble Button */}
+                  <button
+                    onClick={() => { haptic('light'); setIsGoldBubbleOpen(true); }}
+                    className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}
+                    title="محاسبه‌گر حباب طلا و سکه"
+                  >
+                    <Calculator size={18} />
+                  </button>
+
+                  {/* Export / Import Button */}
+                  <button
+                    onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
+                    className={`${cardSurface} p-2.5 rounded-xl text-emerald-500 hover:opacity-90 transition-all`}
+                    title="خروجی و ورودی اکسل / بکاپ"
+                  >
+                    <Download size={18} />
+                  </button>
+
                   <button
                     onClick={() => { haptic('light'); setIsSettingsDrawerOpen(true); }}
                     className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
@@ -306,19 +406,21 @@ export default function App() {
                   >
                     <UserCircle size={18} />
                   </button>
+
                   {user.isAdmin && (
-                    <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}>
-                      <UserCircle size={18} />
+                    <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`} title="پنل مدیریت">
+                      <Shield size={18} />
                     </button>
                   )}
+
                   <button
                     onClick={() => { haptic('medium'); handlePriceUpdate(); }}
                     disabled={isPriceUpdating}
-                    className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
+                    className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-3.5 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
                   >
                     <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
                     <Sparkles size={14} className={isPriceUpdating ? "animate-spin" : ""} />
-                    <span>بروزرسانی هوشمند</span>
+                    <span className="hidden sm:inline">بروزرسانی</span>
                   </button>
                 </div>
               </div>
@@ -393,14 +495,21 @@ export default function App() {
 
         {tab === 'holdings' && (
           <div className="animate-in fade-in duration-300 pb-20">
-            <div className="sticky top-0 bg-[color:var(--card-bg)]/80 backdrop-blur-md z-40 px-4 py-4 shadow-sm border-b border-[color:var(--border-color)]">
+            <div className="sticky top-0 bg-[color:var(--card-bg)]/80 backdrop-blur-md z-40 px-4 py-4 shadow-sm border-b border-[color:var(--border-color)] flex gap-2">
               <input
                 type="text"
-                placeholder="جستجو..."
+                placeholder="جستجو در دارایی‌ها..."
                 value={txFilters.searchQuery}
                 onChange={(e) => setTxFilters(f => ({ ...f, searchQuery: e.target.value }))}
-                className="w-full bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
+                className="flex-1 bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
               />
+              <button
+                onClick={() => { haptic('light'); setIsGoldBubbleOpen(true); }}
+                className="p-3 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl"
+                title="حباب طلا و سکه"
+              >
+                <Calculator size={18} />
+              </button>
             </div>
             {filteredAssets.length === 0 ? (
               <EmptyState
@@ -408,7 +517,7 @@ export default function App() {
                 title="هنوز دارایی‌ای ثبت نشده"
                 description="با افزودن اولین تراکنش، دارایی‌های شما اینجا نمایش داده می‌شود."
                 actionLabel="افزودن تراکنش"
-                onAction={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
+                onAction={() => openNewTxWithAsset()}
               />
             ) : (
               <div>
@@ -426,6 +535,13 @@ export default function App() {
               <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
+                  className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-emerald-600 dark:text-emerald-400"
+                  title="خروجی و ورودی اکسل"
+                >
+                  <Download size={18} />
+                </button>
+                <button
                   onClick={() => { haptic('medium'); setIsSettingsDrawerOpen(true); }}
                   className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]"
                   aria-label="تنظیمات"
@@ -433,7 +549,7 @@ export default function App() {
                   <Settings size={18} />
                 </button>
                 <button
-                  onClick={() => { haptic('success'); setEditingTransaction(null); setIsTxModalOpen(true); }}
+                  onClick={() => { haptic('success'); openNewTxWithAsset(); }}
                   className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white border border-white/10 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 transition-all"
                   aria-label="افزودن تراکنش جدید"
                 >
@@ -443,11 +559,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* Transaction Filters */}
+            {/* Transaction Filters with Wallets & Tags */}
             <div className="mb-4">
               <TransactionFilter
                 filters={txFilters}
                 onFiltersChange={setTxFilters}
+                availableWallets={availableWallets}
+                availableTags={availableTags}
               />
             </div>
 
@@ -457,7 +575,7 @@ export default function App() {
                 title="تراکنشی ثبت نشده"
                 description="با ثبت اولین خرید خود، تاریخچه تراکنش‌ها را اینجا مشاهده کنید."
                 actionLabel="ثبت تراکنش جدید"
-                onAction={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
+                onAction={() => openNewTxWithAsset()}
               />
             ) : (() => {
               const filteredTxs = filterTransactions(
@@ -472,15 +590,45 @@ export default function App() {
               ) : (
                 <div className="space-y-3">
                   {filteredTxs.map(tx => (
-                    <div key={tx.id} onClick={() => { haptic('light'); setEditingTransaction(tx); setIsTxModalOpen(true); }} className={`${cardSurface} p-5 rounded-3xl flex justify-between items-center cursor-pointer`}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-[10px]">{tx.assetSymbol}</div>
-                        <div>
-                          <div className="font-black text-sm text-[color:var(--text-primary)]">{getAssetDetail(tx.assetSymbol).name}</div>
-                          <div className={`text-[10px] font-bold mt-1 ${mutedText}`} dir="ltr">{new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}</div>
+                    <div
+                      key={tx.id}
+                      onClick={() => { haptic('light'); setEditingTransaction(tx); setIsTxModalOpen(true); }}
+                      className={`${cardSurface} p-4 rounded-3xl flex flex-col gap-2 cursor-pointer hover:border-blue-500/40 transition-all shadow-sm`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-[10px]">
+                            {tx.assetSymbol}
+                          </div>
+                          <div>
+                            <div className="font-black text-sm text-[color:var(--text-primary)]">
+                              {getAssetDetail(tx.assetSymbol).name}
+                            </div>
+                            <div className={`text-[10px] font-bold mt-0.5 ${mutedText}`} dir="ltr">
+                              {new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">
+                          {formatNumber(tx.quantity)}
                         </div>
                       </div>
-                      <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">{formatNumber(tx.quantity)}</div>
+
+                      {/* Wallet and Tags Pills */}
+                      {(tx.wallet || (tx.tags && tx.tags.length > 0)) && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[color:var(--border-color)]">
+                          {tx.wallet && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              📍 {tx.wallet}
+                            </span>
+                          )}
+                          {tx.tags?.map(t => (
+                            <span key={t} className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -491,7 +639,45 @@ export default function App() {
 
         <BottomNav currentTab={tab} onTabChange={setTab} />
 
-        <TransactionModal isOpen={isTxModalOpen} initialData={editingTransaction} onClose={() => setIsTxModalOpen(false)} onSave={handleSaveTransaction} onDelete={handleDeleteTransaction} />
+        <TransactionModal
+          isOpen={isTxModalOpen}
+          initialData={editingTransaction}
+          onClose={() => { setIsTxModalOpen(false); setDefaultAssetForNewTx(undefined); }}
+          onSave={handleSaveTransaction}
+          onDelete={handleDeleteTransaction}
+        />
+
+        <GoldBubbleModal
+          isOpen={isGoldBubbleOpen}
+          onClose={() => setIsGoldBubbleOpen(false)}
+          prices={prices}
+          onRefreshPrices={handlePriceUpdate}
+        />
+
+        <ExportImportModal
+          isOpen={isExportImportOpen}
+          onClose={() => setIsExportImportOpen(false)}
+          transactions={transactions}
+          username={user.username}
+          prices={prices}
+          onImportSuccess={handleImportSuccess}
+        />
+
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          prices={prices}
+          onOpenNewTransaction={(sym) => openNewTxWithAsset(sym)}
+          onOpenGoldBubble={() => setIsGoldBubbleOpen(true)}
+          onOpenExportImport={() => setIsExportImportOpen(true)}
+          onRefreshPrices={handlePriceUpdate}
+          onOpenSettings={() => setIsSettingsDrawerOpen(true)}
+          onOpenAdmin={() => setIsAdminPanelOpen(true)}
+          isAdmin={user.isAdmin}
+          theme={theme}
+          onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+        />
+
         <SettingsDrawer
           isOpen={isSettingsDrawerOpen}
           onClose={() => setIsSettingsDrawerOpen(false)}

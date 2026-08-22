@@ -11,6 +11,20 @@ export interface Transaction {
   buyCurrency: Currency;
   feesToman: number;
   note?: string;
+  wallet?: string;
+  tags?: string[];
+}
+
+export interface CoinBubbleInfo {
+  symbol: string;
+  name: string;
+  weightGrams: number;
+  carat: number; // 900 for coin, 750 for 18k
+  marketPriceToman: number;
+  intrinsicValueToman: number;
+  bubbleToman: number;
+  bubblePercent: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 export interface PriceData {
