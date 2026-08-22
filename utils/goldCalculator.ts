@@ -13,6 +13,20 @@ export interface CoinSpecification {
 
 export const COIN_SPECS: CoinSpecification[] = [
   {
+    symbol: 'GOLD18',
+    name: 'یک گرم طلای ۱۸ عیار',
+    weightGrams: 1.000,
+    purity: 0.750,
+    mintingFee: 0,
+  },
+  {
+    symbol: 'ABSHODEH',
+    name: 'یک مثقال طلای آبشده (۱۷ عیار)',
+    weightGrams: 4.6083,
+    purity: 0.705, // ۱۷ عیار
+    mintingFee: 0,
+  },
+  {
     symbol: 'SEKKEH',
     name: 'سکه تمام امامی (طرح جدید)',
     weightGrams: 8.133,
@@ -46,20 +60,6 @@ export const COIN_SPECS: CoinSpecification[] = [
     weightGrams: 1.010,
     purity: 0.900,
     mintingFee: 3000,
-  },
-  {
-    symbol: 'GOLD18',
-    name: 'یک گرم طلای ۱۸ عیار',
-    weightGrams: 1.000,
-    purity: 0.750,
-    mintingFee: 0,
-  },
-  {
-    symbol: 'ABSHODEH',
-    name: 'یک مثقال طلای آبشده',
-    weightGrams: 4.6083,
-    purity: 0.705, // ۱۷ عیار
-    mintingFee: 0,
   },
 ];
 
