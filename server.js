@@ -11,8 +11,8 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 // Zod Validation Schemas
-const usernameSchema = z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, 'نام کاربری فقط شامل حروف، اعداد و _ باشد');
-const passwordSchema = z.string().min(6).max(100);
+const usernameSchema = z.string().min(3, 'نام کاربری باید حداقل ۳ کاراکتر باشد').max(50).regex(/^[a-zA-Z0-9_]+$/, 'نام کاربری فقط شامل حروف، اعداد و _ باشد');
+const passwordSchema = z.string().min(4, 'رمز عبور باید حداقل ۴ کاراکتر باشد').max(100);
 
 const loginSchema = z.object({
     username: usernameSchema,
@@ -23,8 +23,8 @@ const registerSchema = z.object({
     username: usernameSchema,
     password: passwordSchema,
     displayName: z.string().max(100).optional(),
-    securityQuestion: z.string().min(5).max(200),
-    securityAnswer: z.string().min(2).max(100)
+    securityQuestion: z.string().min(2, 'سوال امنیتی باید حداقل ۲ کاراکتر باشد').max(200),
+    securityAnswer: z.string().min(2, 'پاسخ امنیتی باید حداقل ۲ کاراکتر باشد').max(100)
 });
 
 const resetPasswordSchema = z.object({
@@ -36,7 +36,7 @@ const resetPasswordSchema = z.object({
 // Rate Limiters
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 attempts per window
+    max: 50, // 50 attempts per window
     message: { message: 'تلاش‌های زیادی انجام شد. لطفاً ۱۵ دقیقه صبر کنید.' },
     standardHeaders: true,
     legacyHeaders: false
@@ -44,7 +44,7 @@ const authLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 60, // 60 requests per minute
+    max: 120, // 120 requests per minute
     message: { message: 'تعداد درخواست‌ها بیش از حد مجاز است.' }
 });
 
@@ -54,6 +54,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.set('trust proxy', 1); // Trust reverse proxy in docker/nginx
 const PORT = process.env.PORT || 8080;
 
 // در محیط داکر یا پروداکشن، دیتا در پوشه /app/data ذخیره می‌شود
