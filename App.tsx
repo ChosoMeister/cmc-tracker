@@ -361,28 +361,31 @@ export default function App() {
   const worstPerformer = portfolioSummary.assets.length > 1 ? portfolioSummary.assets[portfolioSummary.assets.length - 1] : null;
 
   return (
-    <Layout theme={resolvedTheme}>
-      <Navbar
-        user={user}
-        displayName={displayName}
-        currentTab={tab}
-        onTabChange={setTab}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        onOpenGoldBubble={() => setIsGoldBubbleOpen(true)}
-        onOpenExportImport={() => setIsExportImportOpen(true)}
-        onOpenSettings={() => setIsSettingsDrawerOpen(true)}
-        onOpenAdmin={user.isAdmin ? () => setIsAdminPanelOpen(true) : undefined}
-        onPriceUpdate={handlePriceUpdate}
-        isPriceUpdating={isPriceUpdating}
-        onOpenNewTx={() => openNewTxWithAsset()}
-        onLogout={handleLogout}
-        theme={theme}
-        resolvedTheme={resolvedTheme}
-        onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-        holdingsCount={portfolioSummary.assets.length}
-        transactionsCount={transactions.length}
-      />
-
+    <Layout
+      theme={resolvedTheme}
+      navbar={
+        <Navbar
+          user={user}
+          displayName={displayName}
+          currentTab={tab}
+          onTabChange={setTab}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenGoldBubble={() => setIsGoldBubbleOpen(true)}
+          onOpenExportImport={() => setIsExportImportOpen(true)}
+          onOpenSettings={() => setIsSettingsDrawerOpen(true)}
+          onOpenAdmin={user.isAdmin ? () => setIsAdminPanelOpen(true) : undefined}
+          onPriceUpdate={handlePriceUpdate}
+          isPriceUpdating={isPriceUpdating}
+          onOpenNewTx={() => openNewTxWithAsset()}
+          onLogout={handleLogout}
+          theme={theme}
+          resolvedTheme={resolvedTheme}
+          onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+          holdingsCount={portfolioSummary.assets.length}
+          transactionsCount={transactions.length}
+        />
+      }
+    >
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
@@ -1096,6 +1099,12 @@ export default function App() {
           theme={theme}
           onThemeChange={setTheme}
           onLogout={handleLogout}
+          onOpenGoldBubble={() => setIsGoldBubbleOpen(true)}
+          onOpenExportImport={() => setIsExportImportOpen(true)}
+          onOpenAdmin={user.isAdmin ? () => setIsAdminPanelOpen(true) : undefined}
+          isAdmin={user.isAdmin}
+          onPriceUpdate={handlePriceUpdate}
+          isPriceUpdating={isPriceUpdating}
         />
 
         {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
