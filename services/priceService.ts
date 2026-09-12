@@ -61,9 +61,11 @@ const normalizePriceData = (incoming?: any): PriceData => {
     usdToToman: fiatPrices.USD || usd,
     eurToToman: fiatPrices.EUR || eur,
     gold18ToToman: goldPrices.GOLD18 || gold,
+    worldGoldUsd: incoming.worldGoldUsd ? Number(incoming.worldGoldUsd) : undefined,
     fiatPricesToman: fiatPrices,
     cryptoPricesToman: cryptoPrices,
     goldPricesToman: goldPrices,
+    changes24h: incoming.changes24h || {},
     fetchedAt: incoming.fetchedAt || Date.now(),
   };
 };

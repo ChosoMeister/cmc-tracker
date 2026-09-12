@@ -365,6 +365,16 @@ export default function App() {
       asset.unrealizedPnlToman = asset.currentValueToman - asset.costBasisToman;
       asset.pnlToman = asset.unrealizedPnlToman + asset.realizedPnlToman;
       asset.pnlPercent = asset.costBasisToman > 0 ? (asset.unrealizedPnlToman / asset.costBasisToman) * 100 : 0;
+      asset.change24h = prices.changes24h?.[asset.symbol] ?? (
+        asset.symbol === 'GOLD18' ? prices.changes24h?.['IR_GOLD_18K'] :
+        asset.symbol === 'SEKKEH' ? prices.changes24h?.['IR_COIN_EMAMI'] :
+        asset.symbol === 'BAHAR' ? prices.changes24h?.['IR_COIN_BAHAR'] :
+        asset.symbol === 'NIM' ? prices.changes24h?.['IR_COIN_HALF'] :
+        asset.symbol === 'ROB' ? prices.changes24h?.['IR_COIN_QUARTER'] :
+        asset.symbol === 'SEK' ? prices.changes24h?.['IR_COIN_1G'] :
+        asset.symbol === 'ABSHODEH' ? prices.changes24h?.['IR_GOLD_MELTED'] :
+        undefined
+      );
 
       runningTotalValue += asset.currentValueToman;
       runningTotalCost += asset.costBasisToman;

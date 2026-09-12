@@ -115,7 +115,22 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">نرخ دلار آزاد</p>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <div className="flex items-center gap-1.5">
+                {typeof prices?.changes24h?.USD === 'number' && (
+                  <span
+                    dir="ltr"
+                    className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                      prices.changes24h.USD >= 0
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                    }`}
+                    title="تغییرات ۲۴ ساعته دلار"
+                  >
+                    {prices.changes24h.USD >= 0 ? '+' : ''}{formatPercent(prices.changes24h.USD)}
+                  </span>
+                )}
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              </div>
             </div>
             <p className="text-emerald-600 dark:text-emerald-400 font-black text-lg sm:text-xl" dir="ltr">
               {formatNumber(prices?.usdToToman || 0, 0)} <span className="text-xs text-slate-400">تومان</span>
@@ -127,7 +142,23 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
             <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">طلای ۱۸ عیار (گرم)</p>
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                <div className="flex items-center gap-1.5">
+                  {typeof (prices?.changes24h?.GOLD18 ?? prices?.changes24h?.['IR_GOLD_18K']) === 'number' && (
+                    <span
+                      dir="ltr"
+                      className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                        (prices.changes24h.GOLD18 ?? prices.changes24h['IR_GOLD_18K']) >= 0
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                      }`}
+                      title="تغییرات ۲۴ ساعته طلا"
+                    >
+                      {(prices.changes24h.GOLD18 ?? prices.changes24h['IR_GOLD_18K']) >= 0 ? '+' : ''}
+                      {formatPercent(prices.changes24h.GOLD18 ?? prices.changes24h['IR_GOLD_18K'])}
+                    </span>
+                  )}
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                </div>
               </div>
               <p className="text-amber-600 dark:text-amber-400 font-black text-lg sm:text-xl" dir="ltr">
                 {formatNumber(prices?.gold18ToToman || 0, 0)} <span className="text-xs text-slate-400">تومان</span>
@@ -150,6 +181,7 @@ export const SummaryCard = memo(SummaryCardComponent, (prevProps, nextProps) => 
     prevProps.isRefreshing === nextProps.isRefreshing &&
     prevProps.lastUpdated === nextProps.lastUpdated &&
     prevProps.prices?.usdToToman === nextProps.prices?.usdToToman &&
-    prevProps.prices?.gold18ToToman === nextProps.prices?.gold18ToToman
+    prevProps.prices?.gold18ToToman === nextProps.prices?.gold18ToToman &&
+    prevProps.prices?.changes24h === nextProps.prices?.changes24h
   );
 });

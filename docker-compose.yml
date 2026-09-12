@@ -11,6 +11,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - PORT=${PORT}
+      - BRS_API_KEY=${BRS_API_KEY:-B77uGQj9kEfffrGK4Wu6xZnz9PGJEKBG}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
     volumes:
       - portfolio_tracker_data:/app/data

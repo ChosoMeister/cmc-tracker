@@ -63,6 +63,9 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json');
 const FALLBACK_PRICES = { usdToToman: 70000, eurToToman: 74000, gold18ToToman: 4700000 };
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes fresh cache
+const BRS_API_KEY = process.env.BRS_API_KEY || 'B77uGQj9kEfffrGK4Wu6xZnz9PGJEKBG';
+const BRS_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 // Memory Cache
 let usersCache = [];
@@ -153,73 +156,139 @@ const normalizeNumber = (value = '') => {
     return Number.isFinite(num) ? num : 0;
 };
 
-const fetchCurrencyBoard = async () => {
-    const res = await fetch('https://alanchand.com/currencies-price');
-    if (!res.ok) throw new Error('Failed to load currency rates');
-    const html = await res.text();
-    const $ = cheerio.load(html);
-    const prices = {};
-
-    $('table tbody tr').each((_, row) => {
-        const onclick = $(row).attr('onclick') || '';
-        const slug = onclick.split('/').pop()?.replace(/'/g, '').toUpperCase();
-        if (!slug) return;
-        const sell = normalizeNumber($(row).find('.sellPrice').text());
-        const buy = normalizeNumber($(row).find('.buyPrice').text());
-        const price = sell || buy;
-        if (price) prices[slug] = price;
-    });
-
-    return prices;
-};
-
-const fetchCryptoBoard = async () => {
-    const res = await fetch('https://alanchand.com/crypto-price');
-    if (!res.ok) throw new Error('Failed to load crypto rates');
-    const html = await res.text();
-    const $ = cheerio.load(html);
-    const prices = {};
-
-    $('table tbody tr').each((_, row) => {
-        const onclick = $(row).attr('onclick') || '';
-        const slug = onclick.split('/').pop()?.replace(/'/g, '').toUpperCase();
-        if (!slug) return;
-        const tomanText = $(row).find('.tmn').text();
-        const tomanPrice = normalizeNumber(tomanText);
-        if (tomanPrice) prices[slug] = tomanPrice;
-    });
-
-    return prices;
-};
-
-const fetchGoldBoard = async (usdRate = FALLBACK_PRICES.usdToToman) => {
-    const res = await fetch('https://alanchand.com/gold-price');
-    if (!res.ok) throw new Error('Failed to load gold rates');
-    const html = await res.text();
-    const $ = cheerio.load(html);
-    const prices = {};
-
-    $('table tbody tr').each((_, row) => {
-        const onclick = $(row).attr('onclick') || '';
-        const slug = onclick.split('/').pop()?.replace(/'/g, '').toUpperCase();
-        if (!slug) return;
-
-        const priceCell = $(row).find('td.priceTd').first();
-        const tomanText = priceCell.clone().children().remove().end().text();
-        const priceNumber = normalizeNumber(tomanText);
-        const hasDollar = tomanText.includes('$');
-        const tomanValue = hasDollar ? priceNumber * usdRate : priceNumber;
-
-        if (tomanValue) {
-            prices[slug] = tomanValue;
-            if (slug === '18AYAR' || slug === 'GOLD18') {
-                prices.GOLD18 = tomanValue;
-                prices['18AYAR'] = tomanValue;
-            }
+const fetchBrsApiData = async () => {
+    const res = await fetch(`https://Api.BrsApi.ir/Market/Gold_Currency.php?key=${BRS_API_KEY}`, {
+        headers: {
+            'User-Agent': BRS_USER_AGENT,
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'fa-IR,fa;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': 'https://brsapi.ir/'
         }
     });
+    if (!res.ok) throw new Error(`BrsApi HTTP error: ${res.status}`);
+    const json = await res.json();
+    return json;
+};
 
-    return prices;
+const processBrsMarketRates = (brsData) => {
+    const fiatPrices = {};
+    const cryptoPrices = {};
+    const goldPrices = {};
+    const changes24h = {};
+
+    let usdRate = FALLBACK_PRICES.usdToToman;
+    let eurRate = FALLBACK_PRICES.eurToToman;
+    let gold18Rate = FALLBACK_PRICES.gold18ToToman;
+    let worldGoldUsd = 0;
+    let usdtRate = 0;
+
+    // 1. Process Fiat Currencies
+    if (Array.isArray(brsData.currency)) {
+        brsData.currency.forEach(c => {
+            const sym = c.symbol?.toUpperCase();
+            const price = Number(c.price) || 0;
+            const change = Number(c.change_percent) || 0;
+            if (sym && price > 0) {
+                fiatPrices[sym] = price;
+                changes24h[sym] = change;
+                if (sym === 'USD') usdRate = price;
+                if (sym === 'EUR') eurRate = price;
+                if (sym === 'USDT_IRT') usdtRate = price;
+            }
+        });
+    }
+
+    if (!usdtRate && fiatPrices.USD) {
+        usdtRate = fiatPrices.USD;
+    }
+
+    // 2. Process Gold & Coins
+    if (Array.isArray(brsData.gold)) {
+        brsData.gold.forEach(g => {
+            const sym = g.symbol;
+            const price = Number(g.price) || 0;
+            const change = Number(g.change_percent) || 0;
+
+            if (sym === 'XAUUSD') {
+                worldGoldUsd = price;
+                changes24h['XAUUSD'] = change;
+                changes24h['USD_XAU'] = change;
+                goldPrices['USD_XAU'] = Math.round(price * usdRate);
+                return;
+            }
+
+            if (price > 0) {
+                goldPrices[sym] = price;
+                changes24h[sym] = change;
+
+                // Map to cmc-tracker symbols
+                if (sym === 'IR_GOLD_18K') {
+                    gold18Rate = price;
+                    goldPrices['GOLD18'] = price;
+                    goldPrices['18AYAR'] = price;
+                    changes24h['GOLD18'] = change;
+                    changes24h['18AYAR'] = change;
+                } else if (sym === 'IR_GOLD_24K') {
+                    goldPrices['GOLD24'] = price;
+                    changes24h['GOLD24'] = change;
+                } else if (sym === 'IR_GOLD_MELTED') {
+                    goldPrices['ABSHODEH'] = price;
+                    changes24h['ABSHODEH'] = change;
+                } else if (sym === 'IR_COIN_EMAMI') {
+                    goldPrices['SEKKEH'] = price;
+                    goldPrices['EMAMI'] = price;
+                    changes24h['SEKKEH'] = change;
+                    changes24h['EMAMI'] = change;
+                } else if (sym === 'IR_COIN_BAHAR') {
+                    goldPrices['BAHAR'] = price;
+                    changes24h['BAHAR'] = change;
+                } else if (sym === 'IR_COIN_HALF') {
+                    goldPrices['NIM'] = price;
+                    changes24h['NIM'] = change;
+                } else if (sym === 'IR_COIN_QUARTER') {
+                    goldPrices['ROB'] = price;
+                    changes24h['ROB'] = change;
+                } else if (sym === 'IR_COIN_1G') {
+                    goldPrices['SEK'] = price;
+                    changes24h['SEK'] = change;
+                }
+            }
+        });
+    }
+
+    // 3. Process Cryptocurrencies
+    const cryptoUsdMultiplier = usdtRate || usdRate;
+    if (Array.isArray(brsData.cryptocurrency)) {
+        brsData.cryptocurrency.forEach(cr => {
+            const sym = cr.symbol?.toUpperCase();
+            const usdPrice = Number(cr.price) || 0;
+            const change = Number(cr.change_percent) || 0;
+
+            if (sym && usdPrice > 0) {
+                const tomanPrice = sym === 'USDT'
+                    ? cryptoUsdMultiplier
+                    : Math.round(usdPrice * cryptoUsdMultiplier);
+                cryptoPrices[sym] = tomanPrice;
+                changes24h[sym] = change;
+            }
+        });
+    }
+
+    if (!cryptoPrices['USDT'] && cryptoUsdMultiplier) {
+        cryptoPrices['USDT'] = cryptoUsdMultiplier;
+    }
+
+    return {
+        usdToToman: usdRate,
+        eurToToman: eurRate,
+        gold18ToToman: gold18Rate,
+        worldGoldUsd,
+        fiatPricesToman: fiatPrices,
+        cryptoPricesToman: cryptoPrices,
+        goldPricesToman: goldPrices,
+        changes24h,
+        fetchedAt: Date.now()
+    };
 };
 
 app.use(cors({
@@ -528,42 +597,37 @@ app.get('/api/prices', (req, res) => {
 app.get('/api/prices/refresh', async (req, res) => {
     try {
         const now = Date.now();
-        if (pricesCache?.fetchedAt && now - pricesCache.fetchedAt < ONE_HOUR_MS) {
+        const force = req.query.force === 'true';
+        if (!force && pricesCache?.fetchedAt && now - pricesCache.fetchedAt < CACHE_TTL_MS) {
             return res.json({
                 success: true,
                 data: pricesCache,
                 skipped: true,
-                nextAllowedAt: pricesCache.fetchedAt + ONE_HOUR_MS,
-                message: 'آخرین بروزرسانی کمتر از یک ساعت پیش انجام شده است',
+                nextAllowedAt: pricesCache.fetchedAt + CACHE_TTL_MS,
+                message: 'آخرین بروزرسانی کمتر از ۱۵ دقیقه پیش انجام شده است',
             });
         }
 
-        const [fiatPrices, cryptoPrices] = await Promise.all([
-            fetchCurrencyBoard(),
-            fetchCryptoBoard()
-        ]);
-        const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
-        const goldPrices = await fetchGoldBoard(usdRate);
+        let priceData;
+        let sourceUsed = 'BrsApi.ir';
 
-        const priceData = {
-            usdToToman: usdRate,
-            eurToToman: fiatPrices.EUR || pricesCache?.eurToToman || FALLBACK_PRICES.eurToToman,
-            gold18ToToman: goldPrices.GOLD18 || pricesCache?.gold18ToToman || FALLBACK_PRICES.gold18ToToman,
-            fiatPricesToman: { ...fiatPrices },
-            cryptoPricesToman: { ...cryptoPrices },
-            goldPricesToman: { ...goldPrices },
-            fetchedAt: Date.now(),
-        };
-
-        if (!priceData.fiatPricesToman.USD) priceData.fiatPricesToman.USD = priceData.usdToToman;
-        if (!priceData.fiatPricesToman.EUR) priceData.fiatPricesToman.EUR = priceData.eurToToman;
-        if (!priceData.goldPricesToman.GOLD18 && priceData.gold18ToToman) {
-            priceData.goldPricesToman.GOLD18 = priceData.gold18ToToman;
+        try {
+            const brsRaw = await fetchBrsApiData();
+            priceData = processBrsMarketRates(brsRaw);
+        } catch (brsErr) {
+            console.error('[PriceService] BrsApi fetch error:', brsErr.message);
+            // Fallback to cache if available
+            if (pricesCache) {
+                priceData = { ...pricesCache, fetchedAt: Date.now() };
+                sourceUsed = 'Local Cache (Fallback)';
+            } else {
+                throw brsErr;
+            }
         }
 
         pricesCache = priceData;
         try {
-            await fs.promises.writeFile(PRICES_FILE, JSON.stringify(priceData));
+            await fs.promises.writeFile(PRICES_FILE, JSON.stringify(priceData, null, 2));
         } catch (err) {
             console.error('Error persisting refreshed prices:', err);
         }
@@ -572,10 +636,9 @@ app.get('/api/prices/refresh', async (req, res) => {
             success: true,
             data: priceData,
             sources: [
-                { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
-                { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
+                { title: 'وب‌سرویس جامع طلا، ارز و کریپتو (BrsApi)', uri: 'https://brsapi.ir' },
             ],
-            nextAllowedAt: priceData.fetchedAt + ONE_HOUR_MS,
+            nextAllowedAt: priceData.fetchedAt + CACHE_TTL_MS,
         });
     } catch (error) {
         console.error('Error refreshing prices:', error);

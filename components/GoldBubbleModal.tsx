@@ -43,11 +43,9 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
   if (!isOpen) return null;
 
   const currentUsdRate = prices?.usdToToman || 70000;
-  const estimatedOunceUsd = prices?.goldPricesToman?.USD_XAU
-    ? Math.round(prices.goldPricesToman.USD_XAU / currentUsdRate)
-    : prices?.gold18ToToman
-    ? Math.round((prices.gold18ToToman * 31.1035) / (0.75 * currentUsdRate))
-    : 2700;
+  const estimatedOunceUsd = prices?.worldGoldUsd
+    || (prices?.goldPricesToman?.USD_XAU ? Math.round(prices.goldPricesToman.USD_XAU / currentUsdRate) : undefined)
+    || (prices?.gold18ToToman ? Math.round((prices.gold18ToToman * 31.1035) / (0.75 * currentUsdRate)) : 2700);
 
   return (
     <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200">

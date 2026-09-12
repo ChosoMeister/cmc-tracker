@@ -14,7 +14,8 @@ import {
   Download, 
   Shield, 
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import * as AuthService from '../services/authService';
 

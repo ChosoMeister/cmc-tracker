@@ -42,11 +42,26 @@ const AssetRowComponent: React.FC<AssetRowProps> = ({ asset, onClick }) => {
             <span>{formatNumber(asset.totalQuantity, 3)}</span>
             <span className="opacity-60">{asset.type === 'GOLD' ? 'گرم' : asset.symbol}</span>
           </div>
-          {/* نمایش قیمت لحظه‌ای واحد */}
-          <div className="text-[10px] text-blue-600 mt-1 font-black flex items-center gap-1">
-            <span className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></span>
-            <span>قیمت واحد:</span>
-            <span dir="ltr">{formatToman(asset.currentPriceToman)} ت</span>
+          {/* نمایش قیمت لحظه‌ای واحد و تغییر ۲۴ ساعته */}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <div className="text-[11px] text-blue-600 dark:text-blue-400 font-black flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+              <span>واحد:</span>
+              <span dir="ltr">{formatToman(asset.currentPriceToman)} ت</span>
+            </div>
+            {typeof asset.change24h === 'number' && (
+              <span
+                dir="ltr"
+                className={`text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 ring-1 transition-colors ${
+                  asset.change24h >= 0
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-rose-500/20'
+                }`}
+                title="تغییرات ۲۴ ساعت گذشته بازار"
+              >
+                {asset.change24h >= 0 ? '+' : ''}{formatPercent(asset.change24h)}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -70,7 +85,9 @@ export const AssetRow = memo(AssetRowComponent, (prevProps, nextProps) => {
   return (
     prevProps.asset.symbol === nextProps.asset.symbol &&
     prevProps.asset.currentValueToman === nextProps.asset.currentValueToman &&
+    prevProps.asset.currentPriceToman === nextProps.asset.currentPriceToman &&
     prevProps.asset.pnlToman === nextProps.asset.pnlToman &&
-    prevProps.asset.totalQuantity === nextProps.asset.totalQuantity
+    prevProps.asset.totalQuantity === nextProps.asset.totalQuantity &&
+    prevProps.asset.change24h === nextProps.asset.change24h
   );
 });

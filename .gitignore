@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Project data and backups
+data/
+.ag-kit-backups/
+.agents/.ag-kit/reports/
+__pycache__/
+*.pyc

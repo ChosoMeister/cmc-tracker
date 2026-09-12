@@ -43,9 +43,11 @@ export interface PriceData {
   usdToToman: number;
   eurToToman: number;
   gold18ToToman: number;
+  worldGoldUsd?: number;
   fiatPricesToman: Record<string, number>;
   cryptoPricesToman: Record<string, number>;
   goldPricesToman: Record<string, number>;
+  changes24h?: Record<string, number>;
   fetchedAt: number;
 }
 
@@ -62,6 +64,7 @@ export interface AssetSummary {
   realizedPnlToman: number;
   unrealizedPnlToman: number;
   allocationPercent: number;
+  change24h?: number;
 }
 
 export interface PortfolioSummary {

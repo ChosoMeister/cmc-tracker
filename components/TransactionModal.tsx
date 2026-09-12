@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Check, Trash2 } from 'lucide-react';
-import { ASSET_DETAILS, AssetSymbol, Currency, Transaction, getAssetDetail } from '../types';
+import { ASSET_DETAILS, AssetSymbol, Currency, Transaction, TransactionType, getAssetDetail } from '../types';
 import { formatCurrencyInput, parseCurrencyInput } from '../utils/formatting';
 import { JalaliDatePicker } from './JalaliDatePicker';
 import { ConfirmDialog } from './ConfirmDialog';

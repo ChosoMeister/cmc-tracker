@@ -93,6 +93,7 @@ export const calculateAllBubbles = (
   // اگر انس جهانی در لیست قیمت‌های طلا نبود، از محاسبه معکوس طلای ۱۸ عیار یا مقدار پیش‌فرض استفاده می‌کنیم
   const ounceUsd =
     customOunceUsd ||
+    prices.worldGoldUsd ||
     (prices.goldPricesToman?.USD_XAU
       ? prices.goldPricesToman.USD_XAU / usdRate
       : (prices.gold18ToToman * OUNCE_GRAMS) / (0.75 * usdRate));
