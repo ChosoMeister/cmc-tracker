@@ -9,6 +9,7 @@ import * as cheerio from 'cheerio';
 import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { syncMarketHistory, recordDailySnapshot } from './services/historyService.js';
 
 // Zod Validation Schemas
 const usernameSchema = z.string().min(3, 'نام کاربری باید حداقل ۳ کاراکتر باشد').max(50).regex(/^[a-zA-Z0-9_]+$/, 'نام کاربری فقط شامل حروف، اعداد و _ باشد');
@@ -650,10 +651,40 @@ app.post('/api/prices', async (req, res) => {
     pricesCache = req.body;
     try {
         await fs.promises.writeFile(PRICES_FILE, JSON.stringify(req.body));
+        recordDailySnapshot(DATA_DIR, req.body);
     } catch (e) {
         console.error('Error saving prices:', e);
     }
     res.json({ success: true });
+});
+
+// ================= MARKET HISTORY ENDPOINTS =================
+const HISTORY_FILE = path.join(DATA_DIR, 'market_history.json');
+
+app.get('/api/history', async (req, res) => {
+    try {
+        if (!fs.existsSync(HISTORY_FILE)) {
+            // Trigger initial sync in background if missing
+            syncMarketHistory(DATA_DIR).catch(err => console.error('Background sync failed:', err));
+            return res.json({});
+        }
+        const data = await fs.promises.readFile(HISTORY_FILE, 'utf8');
+        res.setHeader('Content-Type', 'application/json');
+        res.send(data);
+    } catch (err) {
+        console.error('Error serving market history:', err);
+        res.status(500).json({ error: 'Failed to read market history' });
+    }
+});
+
+app.post('/api/history/sync', async (req, res) => {
+    try {
+        const synced = await syncMarketHistory(DATA_DIR);
+        res.json({ success: true, count: Object.keys(synced).length });
+    } catch (err) {
+        console.error('Error syncing market history:', err);
+        res.status(500).json({ error: 'Sync failed: ' + err.message });
+    }
 });
 
 // SPA Routing: ارسال تمام درخواست‌های ناشناخته به ایندکس

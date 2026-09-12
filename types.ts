@@ -39,6 +39,9 @@ export interface HistoricalPortfolioPoint {
   pnlPercent: number;
 }
 
+export type MarketDayPrices = Record<string, number>;
+export type MarketHistoryMap = Record<string, MarketDayPrices>;
+
 export interface PriceData {
   usdToToman: number;
   eurToToman: number;

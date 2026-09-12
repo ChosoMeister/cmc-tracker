@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Calendar, Sparkles, Filter } from 'lucide-react';
-import { Transaction, PriceData, AssetSummary } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { TrendingUp, TrendingDown, Calendar, Sparkles, Filter, Database } from 'lucide-react';
+import { Transaction, PriceData, AssetSummary, MarketHistoryMap } from '../types';
 import { formatNumber, formatPercent, formatToman } from '../utils/formatting';
+import { API } from '../services/api';
 
 interface PortfolioHistoryChartProps {
   transactions: Transaction[];
@@ -14,7 +15,7 @@ type Timeframe = '1M' | '3M' | '6M' | '1Y' | 'ALL';
 
 /**
  * Historical benchmark prices for major assets (Gold 18k, USD, EUR, ETH, BTC, ADA)
- * across key dates to generate true market drawdowns, corrections and rallies
+ * fallback keyframes if server history is unavailable
  */
 const HISTORICAL_PRICE_KEYFRAMES: Array<{
   timestamp: number; // Date timestamp
@@ -34,12 +35,12 @@ const HISTORICAL_PRICE_KEYFRAMES: Array<{
   { timestamp: new Date('2025-02-15').getTime(), usdToman: 91000, gold18Toman: 6450000, eurToman: 94000, ethUsd: 2700, btcUsd: 96000, adaUsd: 0.68 },
   { timestamp: new Date('2025-03-10').getTime(), usdToman: 96000, gold18Toman: 7100000, eurToman: 99000, ethUsd: 2150, btcUsd: 84000, adaUsd: 0.72 },
   { timestamp: new Date('2025-04-05').getTime(), usdToman: 104000, gold18Toman: 7895107, eurToman: 110000, ethUsd: 2600, btcUsd: 87000, adaUsd: 0.70 },
-  { timestamp: new Date('2025-05-15').getTime(), usdToman: 92000, gold18Toman: 6950000, eurToman: 98000, ethUsd: 2800, btcUsd: 92000, adaUsd: 0.74 }, // Dip / Correction
-  { timestamp: new Date('2025-06-25').getTime(), usdToman: 89000, gold18Toman: 6750000, eurToman: 95000, ethUsd: 3100, btcUsd: 95000, adaUsd: 0.78 }, // Dip bottom
+  { timestamp: new Date('2025-05-15').getTime(), usdToman: 92000, gold18Toman: 6950000, eurToman: 98000, ethUsd: 2800, btcUsd: 92000, adaUsd: 0.74 },
+  { timestamp: new Date('2025-06-25').getTime(), usdToman: 89000, gold18Toman: 6750000, eurToman: 95000, ethUsd: 3100, btcUsd: 95000, adaUsd: 0.78 },
   { timestamp: new Date('2025-08-01').getTime(), usdToman: 98000, gold18Toman: 7900000, eurToman: 105000, ethUsd: 3700, btcUsd: 104000, adaUsd: 0.88 },
-  { timestamp: new Date('2025-09-07').getTime(), usdToman: 114000, gold18Toman: 8996000, eurToman: 122000, ethUsd: 4300, btcUsd: 112000, adaUsd: 0.95 }, // Peak
-  { timestamp: new Date('2025-10-20').getTime(), usdToman: 106000, gold18Toman: 8350000, eurToman: 114000, ethUsd: 3850, btcUsd: 106000, adaUsd: 0.78 }, // Dip
-  { timestamp: new Date('2025-11-25').getTime(), usdToman: 103000, gold18Toman: 8100000, eurToman: 111000, ethUsd: 3400, btcUsd: 98000, adaUsd: 0.65 }, // Dip
+  { timestamp: new Date('2025-09-07').getTime(), usdToman: 114000, gold18Toman: 8996000, eurToman: 122000, ethUsd: 4300, btcUsd: 112000, adaUsd: 0.95 },
+  { timestamp: new Date('2025-10-20').getTime(), usdToman: 106000, gold18Toman: 8350000, eurToman: 114000, ethUsd: 3850, btcUsd: 106000, adaUsd: 0.78 },
+  { timestamp: new Date('2025-11-25').getTime(), usdToman: 103000, gold18Toman: 8100000, eurToman: 111000, ethUsd: 3400, btcUsd: 98000, adaUsd: 0.65 },
   { timestamp: new Date('2025-12-30').getTime(), usdToman: 122000, gold18Toman: 9600000, eurToman: 131000, ethUsd: 3600, btcUsd: 105000, adaUsd: 0.75 },
   { timestamp: new Date('2026-01-25').getTime(), usdToman: 155000, gold18Toman: 12300000, eurToman: 165000, ethUsd: 3300, btcUsd: 98000, adaUsd: 0.70 },
 ];
@@ -51,6 +52,8 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
   currentCostBasis,
 }) => {
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL');
+  const [serverHistory, setServerHistory] = useState<MarketHistoryMap>({});
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [hoveredPoint, setHoveredPoint] = useState<{
     dateStr: string;
     jalaliStr: string;
@@ -60,12 +63,61 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
     profitPct: number;
   } | null>(null);
 
+  // Load real server history on mount
+  useEffect(() => {
+    let isMounted = true;
+    API.getMarketHistory().then(history => {
+      if (isMounted && history && Object.keys(history).length > 0) {
+        setServerHistory(history);
+        setIsHistoryLoaded(true);
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
   // Helper to interpolate price for a specific asset at any timestamp
   const getAssetPriceAtTime = (symbol: string, time: number): number => {
     const liveUsd = prices?.usdToToman || 190000;
     const liveGold = prices?.gold18ToToman || 14000000;
     const liveEur = prices?.eurToToman || prices?.fiatPricesToman?.EUR || 205000;
 
+    // Check if we have exact real historical data from server on this date
+    const dateKey = new Date(time).toISOString().split('T')[0];
+    if (serverHistory && serverHistory[dateKey]) {
+      const dayData = serverHistory[dateKey];
+      const usdOnDay = dayData['USD'] || liveUsd;
+
+      if ((symbol === 'GOLD18' || symbol === '18AYAR') && dayData['GOLD18']) {
+        return dayData['GOLD18'];
+      }
+      if (symbol === 'ABSHODEH' && dayData['GOLD18']) {
+        return dayData['GOLD18'] * 4.3318;
+      }
+      if ((symbol === 'SEKKEH' || symbol === 'BAHAR') && (dayData['SEKKEH'] || dayData['GOLD18'])) {
+        return dayData['SEKKEH'] || (dayData['GOLD18'] * 8.133 * 1.25);
+      }
+      if (symbol === 'NIM' && (dayData['NIM'] || dayData['GOLD18'])) {
+        return dayData['NIM'] || (dayData['GOLD18'] * 4.066 * 1.30);
+      }
+      if (symbol === 'ROB' && (dayData['ROB'] || dayData['GOLD18'])) {
+        return dayData['ROB'] || (dayData['GOLD18'] * 2.033 * 1.40);
+      }
+      if (symbol === 'GERAMI' && (dayData['GERAMI'] || dayData['GOLD18'])) {
+        return dayData['GERAMI'] || (dayData['GOLD18'] * 1.010 * 1.45);
+      }
+      if ((symbol === 'USD' || symbol === 'USDT' || symbol === 'USD-HAV') && dayData['USD']) {
+        return dayData['USD'];
+      }
+      if ((symbol === 'EUR' || symbol === 'EUR-HAV') && dayData['EUR']) {
+        return dayData['EUR'];
+      }
+      // Crypto directly in USD * USD_IRT on that day
+      if (dayData[symbol] && dayData['USD']) {
+        return dayData[symbol] * dayData['USD'];
+      }
+    }
+
+    // Fallback: Interpolate across keyframes
     const allKeyframes = [
       ...HISTORICAL_PRICE_KEYFRAMES,
       {
@@ -289,8 +341,9 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
             <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
               روند رشد ارزش سبد دارایی
             </span>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              دقیق با نوسانات بازار
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <Database size={11} />
+              <span>{isHistoryLoaded ? 'مبتنی بر آرشیو رسمی بازار' : 'دقیق با نوسانات بازار'}</span>
             </span>
           </div>
 

@@ -384,5 +384,19 @@ export const API = {
       user.passwordHash = newPassword;
       saveLocalUsers(users);
     }
+  },
+
+  getMarketHistory: async (): Promise<Record<string, Record<string, number>>> => {
+    try {
+      const res = await withTimeout(`${BASE_URL}/api/history`);
+      if (res.ok) {
+        const data = await res.json();
+        return data || {};
+      }
+      return {};
+    } catch (e) {
+      console.warn('Failed to load market history from server, fallback to empty', e);
+      return {};
+    }
   }
 };
