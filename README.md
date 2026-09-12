@@ -6,7 +6,13 @@ CMC Tracker is a portfolio management dashboard for tracking crypto, fiat, and g
 - User authentication with persistent storage for transactions (bcrypt hashed credentials).
 - Admin panel to manage users and review portfolio activity.
 - **BrsApi.ir Live Integration:** Real-time prices for 28 fiat currencies, gold, full range of gold coins (Emami, Bahar, Nim, Rob, Gerami), and 19 major cryptocurrencies.
-- **24-Hour Market Change Indicators:** Real-time percentage shifts displayed on individual asset rows and top summary cards.
+- **24-Hour Market Change Indicators:** Real-time percentage shifts displayed on individual asset rows, summary cards, and market tiles.
+- **Live Bento Market Board (تابلوی زنده بازار):** A dedicated market rates tab with glassmorphic Bento tiles, live search, 24h change sorting, and instant 1-click portfolio addition (`+ افزودن به سبد`).
+- **Official Market Historical Archive (سوابق و آرشیو رسمی بازار):**
+  - Integrated with TGJU archive for 980+ days of historical closing prices for gold, coins, USD, and EUR.
+  - Integrated with Binance Klines API for daily cryptocurrency closing prices.
+  - Calibrates the **Portfolio Growth Chart (روند رشد ارزش سبد دارایی)** to exact historical market rates without approximations.
+  - Automatic end-of-day snapshots saved locally to `data/market_history.json`.
 - **Precision Gold & Coin Bubble Calculator:** Live intrinsic value calculation based on world gold ounce (XAUUSD) and free market USD rate.
 - **DCA Calculator & Portfolio Analytics:** Dollar-cost averaging simulation, realized/unrealized PnL, and allocation charts.
 - **Vector Icon Assets:** High-contrast, brand-compliant SVG vector badges for gold assets, country flags for fiat, and CoinCap CDN icons for crypto.
