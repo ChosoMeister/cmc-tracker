@@ -50,6 +50,7 @@ const ExportImportModal = lazy(() => import('./components/ExportImportModal').th
 const CommandPalette = lazy(() => import('./components/CommandPalette').then(module => ({ default: module.CommandPalette })));
 const DcaCalculatorModal = lazy(() => import('./components/DcaCalculatorModal').then(module => ({ default: module.DcaCalculatorModal })));
 const PortfolioHistoryChart = lazy(() => import('./components/PortfolioHistoryChart').then(module => ({ default: module.PortfolioHistoryChart })));
+const MarketBoard = lazy(() => import('./components/MarketBoard').then(module => ({ default: module.MarketBoard })));
 import { CategoryPills, CategoryFilterType } from './components/CategoryPills';
 
 export default function App() {
@@ -1143,6 +1144,17 @@ export default function App() {
             })()}
 
           </div>
+        )}
+
+        {/* ================= TAB 4: MARKET BOARD ================= */}
+        {tab === 'market' && (
+          <MarketBoard
+            prices={prices}
+            onRefreshPrices={handlePriceUpdate}
+            isPriceUpdating={isPriceUpdating}
+            onOpenNewTxWithAsset={openNewTxWithAsset}
+            onOpenGoldBubble={() => setIsGoldBubbleOpen(true)}
+          />
         )}
 
         {/* Floating Mobile Bottom Nav */}

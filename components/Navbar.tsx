@@ -11,7 +11,8 @@ import {
   LogOut, 
   LayoutDashboard, 
   PieChart, 
-  History
+  History,
+  TrendingUp
 } from 'lucide-react';
 import { useHaptics } from '../hooks/useHaptics';
 
@@ -57,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navTabs = [
     { id: 'overview', label: 'نگاه کلی', icon: LayoutDashboard },
+    { id: 'market', label: 'تابلو بازار', icon: TrendingUp },
     { id: 'holdings', label: 'دارایی‌ها', icon: PieChart, count: holdingsCount },
     { id: 'transactions', label: 'تراکنش‌ها', icon: History, count: transactionsCount },
   ];
