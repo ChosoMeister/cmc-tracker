@@ -560,62 +560,62 @@ export default function App() {
                     {/* Allocation Donut Chart */}
                     <AllocationChart summary={portfolioSummary} />
 
-                    {/* Best & Worst Performers Cards (Placed right under Asset Allocation for balanced aesthetics) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3.5">
+                    {/* Best & Worst Performers Cards (Stacked vertically for optimal breathing room and readable metrics) */}
+                    <div className="flex flex-col gap-3.5">
                       
                       {/* Best Performer */}
-                      <div className={`${cardSurface} p-4.5 rounded-[24px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-emerald-500/30`}>
-                        <div className="flex items-center justify-between mb-2.5">
+                      <div className={`${cardSurface} p-5 rounded-[24px] sm:rounded-[28px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-emerald-500/30`}>
+                        <div className="flex items-center justify-between mb-3">
                           <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black text-xs">
-                            <ArrowUpRight size={15} /> {language === 'en' ? 'Best Performer' : 'بهترین عملکرد'}
+                            <ArrowUpRight size={16} /> {language === 'en' ? 'Best Performer' : 'بهترین عملکرد سبد'}
                           </span>
                           {bestPerformer && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" dir="ltr">
+                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" dir="ltr">
                               {formatPercent(bestPerformer.pnlPercent, language)}
                             </span>
                           )}
                         </div>
                         {bestPerformer ? (
-                          <div>
-                            <div className="font-black text-sm sm:text-base text-slate-800 dark:text-white flex items-center justify-between">
-                              <span className="truncate max-w-[130px]">{getAssetDetail(bestPerformer.symbol, language).name || bestPerformer.name}</span>
-                              <span className="text-[11px] text-slate-400 font-mono shrink-0">{bestPerformer.symbol}</span>
+                          <div className="space-y-1.5">
+                            <div className="font-black text-base text-slate-800 dark:text-white flex items-center justify-between">
+                              <span>{getAssetDetail(bestPerformer.symbol, language).name || bestPerformer.name}</span>
+                              <span className="text-xs text-slate-400 font-mono">{bestPerformer.symbol}</span>
                             </div>
-                            <div className="text-[11px] font-bold text-slate-500 mt-1 flex justify-between items-center">
+                            <div className="text-xs font-bold text-slate-500 flex justify-between items-center pt-1 border-t border-slate-100 dark:border-slate-800/60">
                               <span>{language === 'en' ? 'Net PnL:' : 'سود خالص:'}</span>
                               <span className="font-black text-emerald-600 dark:text-emerald-400" dir="ltr">+{formatToman(bestPerformer.pnlToman, language)} {language === 'en' ? 'T' : 'ت'}</span>
                             </div>
                           </div>
                         ) : (
-                          <div className="text-slate-400 text-xs py-1.5 font-bold">{language === 'en' ? 'No transactions yet' : 'تراکنشی ثبت نشده است'}</div>
+                          <div className="text-slate-400 text-xs py-2 font-bold">{language === 'en' ? 'No transactions yet' : 'تراکنشی ثبت نشده است'}</div>
                         )}
                       </div>
 
                       {/* Worst Performer */}
-                      <div className={`${cardSurface} p-4.5 rounded-[24px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-rose-500/30`}>
-                        <div className="flex items-center justify-between mb-2.5">
+                      <div className={`${cardSurface} p-5 rounded-[24px] sm:rounded-[28px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-rose-500/30`}>
+                        <div className="flex items-center justify-between mb-3">
                           <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-black text-xs">
-                            <ArrowDownRight size={15} /> {language === 'en' ? 'Lowest Return' : 'کمترین بازدهی'}
+                            <ArrowDownRight size={16} /> {language === 'en' ? 'Lowest Return' : 'کمترین بازدهی'}
                           </span>
                           {worstPerformer && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" dir="ltr">
+                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" dir="ltr">
                               {formatPercent(worstPerformer.pnlPercent, language)}
                             </span>
                           )}
                         </div>
                         {worstPerformer ? (
-                          <div>
-                            <div className="font-black text-sm sm:text-base text-slate-800 dark:text-white flex items-center justify-between">
-                              <span className="truncate max-w-[130px]">{getAssetDetail(worstPerformer.symbol, language).name || worstPerformer.name}</span>
-                              <span className="text-[11px] text-slate-400 font-mono shrink-0">{worstPerformer.symbol}</span>
+                          <div className="space-y-1.5">
+                            <div className="font-black text-base text-slate-800 dark:text-white flex items-center justify-between">
+                              <span>{getAssetDetail(worstPerformer.symbol, language).name || worstPerformer.name}</span>
+                              <span className="text-xs text-slate-400 font-mono">{worstPerformer.symbol}</span>
                             </div>
-                            <div className="text-[11px] font-bold text-slate-500 mt-1 flex justify-between items-center">
+                            <div className="text-xs font-bold text-slate-500 flex justify-between items-center pt-1 border-t border-slate-100 dark:border-slate-800/60">
                               <span>{language === 'en' ? 'PnL:' : 'سود / زیان:'}</span>
                               <span className="font-black text-rose-600 dark:text-rose-400" dir="ltr">{formatToman(worstPerformer.pnlToman, language)} {language === 'en' ? 'T' : 'ت'}</span>
                             </div>
                           </div>
                         ) : (
-                          <div className="text-slate-400 text-xs py-1.5 font-bold">{language === 'en' ? 'Second transaction not recorded' : 'تراکنش دوم ثبت نشده است'}</div>
+                          <div className="text-slate-400 text-xs py-2 font-bold">{language === 'en' ? 'Second transaction not recorded' : 'تراکنش دوم ثبت نشده است'}</div>
                         )}
                       </div>
 
