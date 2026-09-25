@@ -1,6 +1,7 @@
 
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { useSpring, animated, config } from '@react-spring/web';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface AnimatedNumberProps {
     value: number;
@@ -13,14 +14,22 @@ interface AnimatedNumberProps {
 
 const AnimatedNumberComponent: React.FC<AnimatedNumberProps> = ({
     value,
-    formatter = (v) => v.toLocaleString('fa-IR'),
+    formatter,
     duration = 500,
     className = '',
     prefix = '',
     suffix = ''
 }) => {
+    const { language } = useTranslation();
     const prevValue = useRef(value);
     const [isFirstRender, setIsFirstRender] = useState(true);
+
+    const defaultFormatter = (v: number) => {
+        const locale = language === 'en' ? 'en-US' : 'fa-IR';
+        return v.toLocaleString(locale);
+    };
+
+    const activeFormatter = formatter || defaultFormatter;
 
     useEffect(() => {
         if (isFirstRender) {
@@ -36,8 +45,8 @@ const AnimatedNumberComponent: React.FC<AnimatedNumberProps> = ({
     });
 
     return (
-        <animated.span className={className}>
-            {number.to((n) => `${prefix}${formatter(Math.floor(n))}${suffix}`)}
+        <animated.span className={className} dir="ltr">
+            {number.to((n) => `${prefix}${activeFormatter(Math.floor(n))}${suffix}`)}
         </animated.span>
     );
 };
@@ -56,12 +65,15 @@ const AnimatedTomanComponent: React.FC<AnimatedTomanProps> = ({
     className = '',
     showSuffix = true
 }) => {
+    const { language, t } = useTranslation();
+    const locale = language === 'en' ? 'en-US' : 'fa-IR';
+
     return (
         <AnimatedNumber
             value={value}
-            formatter={(v) => new Intl.NumberFormat('fa-IR').format(Math.round(v))}
+            formatter={(v) => new Intl.NumberFormat(locale).format(Math.round(v))}
             className={className}
-            suffix={showSuffix ? ' تومان' : ''}
+            suffix={showSuffix ? ` ${t('common.toman')}` : ''}
         />
     );
 };
@@ -80,18 +92,22 @@ const AnimatedPercentComponent: React.FC<AnimatedPercentProps> = ({
     className = '',
     showSign = true
 }) => {
+    const { language } = useTranslation();
     const sign = showSign && value > 0 ? '+' : '';
+    const locale = language === 'en' ? 'en-US' : 'fa-IR';
+    const percentSymbol = language === 'en' ? '%' : '٪';
 
     return (
         <AnimatedNumber
             value={value}
-            formatter={(v) => `${sign}${new Intl.NumberFormat('fa-IR', {
+            formatter={(v) => `${sign}${new Intl.NumberFormat(locale, {
                 maximumFractionDigits: 2,
                 minimumFractionDigits: 2
-            }).format(v)}٪`}
+            }).format(v)}${percentSymbol}`}
             className={className}
         />
     );
 };
 
 export const AnimatedPercent = memo(AnimatedPercentComponent);
+

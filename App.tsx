@@ -629,7 +629,7 @@ export default function App() {
                       
                       <button
                         onClick={() => { haptic('light'); setIsGoldBubbleOpen(true); }}
-                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-700 dark:text-amber-300 transition-all text-right group"
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-700 dark:text-amber-300 transition-all ${language === 'en' ? 'text-left' : 'text-right'} group`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-amber-500/20">
@@ -640,12 +640,12 @@ export default function App() {
                             <div className="text-[10px] opacity-80">{t('goldBubbleDesc')}</div>
                           </div>
                         </div>
-                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                        <ArrowRight size={16} className={`${language === 'en' ? 'group-hover:translate-x-1' : 'rotate-180 group-hover:-translate-x-1'} transition-transform`} />
                       </button>
 
                       <button
                         onClick={() => { haptic('light'); setIsDcaModalOpen(true); }}
-                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-all text-right group"
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-all ${language === 'en' ? 'text-left' : 'text-right'} group`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-indigo-500/20">
@@ -656,12 +656,12 @@ export default function App() {
                             <div className="text-[10px] opacity-80">{t('dcaCalcDesc')}</div>
                           </div>
                         </div>
-                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                        <ArrowRight size={16} className={`${language === 'en' ? 'group-hover:translate-x-1' : 'rotate-180 group-hover:-translate-x-1'} transition-transform`} />
                       </button>
 
                       <button
                         onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
-                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition-all text-right group"
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition-all ${language === 'en' ? 'text-left' : 'text-right'} group`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-emerald-500/20">
@@ -672,12 +672,12 @@ export default function App() {
                             <div className="text-[10px] opacity-80">{t('backupDesc')}</div>
                           </div>
                         </div>
-                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                        <ArrowRight size={16} className={`${language === 'en' ? 'group-hover:translate-x-1' : 'rotate-180 group-hover:-translate-x-1'} transition-transform`} />
                       </button>
 
                       <button
                         onClick={() => { haptic('light'); setIsCommandPaletteOpen(true); }}
-                        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 text-blue-700 dark:text-blue-300 transition-all text-right group"
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 text-blue-700 dark:text-blue-300 transition-all ${language === 'en' ? 'text-left' : 'text-right'} group`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-blue-500/20">
@@ -688,7 +688,7 @@ export default function App() {
                             <div className="text-[10px] opacity-80">{language === 'en' ? 'Live currency calculator and search' : 'ماشین حساب زنده تبدیل ارز و جستجو'}</div>
                           </div>
                         </div>
-                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                        <ArrowRight size={16} className={`${language === 'en' ? 'group-hover:translate-x-1' : 'rotate-180 group-hover:-translate-x-1'} transition-transform`} />
                       </button>
                     </div>
 

@@ -66,9 +66,9 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
         </div>
 
         {/* Hero Big Value Display */}
-        <div className="text-center sm:text-right mb-8">
+        <div className={`text-center ${language === 'en' ? 'sm:text-left' : 'sm:text-right'} mb-8`}>
           <div className="inline-block">
-            <div className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white tracking-tighter drop-shadow-sm flex items-baseline justify-center sm:justify-start gap-2">
+            <div className={`text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white tracking-tighter drop-shadow-sm flex items-baseline justify-center ${language === 'en' ? 'sm:justify-start' : 'sm:justify-start'} gap-2`} dir="ltr">
               <AnimatedToman value={summary.totalValueToman} showSuffix={false} />
               <span className="text-xl sm:text-3xl text-slate-400 dark:text-slate-500 font-black">
                 {t('common.toman')}
