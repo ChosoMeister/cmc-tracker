@@ -5,6 +5,12 @@ CMC Tracker is a portfolio management dashboard for tracking crypto, fiat, and g
 ## Features
 - User authentication with persistent storage for transactions (bcrypt hashed credentials).
 - Admin panel to manage users and review portfolio activity.
+- **Bilingual & Multi-Locale Support (پشتیبانی دو زبانه فارسی و انگلیسی):**
+  - Seamless zero-latency switching between Persian (`fa`) and English (`en`).
+  - Dynamic RTL (Right-to-Left) and LTR (Left-to-Right) layout transitions.
+  - Native typography pairing: Vazirmatn font for Persian and Inter/system font for English.
+  - Contextual number formatting (`fa-IR` Persian digits vs `en-US` Latin standard digits, localized currency units `T`/`ت`, and percentages).
+  - Quick toggle button in the navbar, settings drawer, and login screen.
 - **BrsApi.ir Live Integration:** Real-time prices for 28 fiat currencies, gold, full range of gold coins (Emami, Bahar, Nim, Rob, Gerami), and 19 major cryptocurrencies.
 - **24-Hour Market Change Indicators:** Real-time percentage shifts displayed on individual asset rows, summary cards, and market tiles.
 - **Live Bento Market Board (تابلوی زنده بازار):** A dedicated market rates tab with glassmorphic Bento tiles, live search, 24h change sorting, and instant 1-click portfolio addition (`+ افزودن به سبد`).
