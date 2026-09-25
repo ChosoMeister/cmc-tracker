@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Calculator, ArrowDownRight, ArrowUpRight, Sparkles, TrendingDown, Layers, HelpCircle, Check } from 'lucide-react';
 import { AssetSummary, PriceData, allAssets, getAssetDetail } from '../types';
 import { formatNumber, formatPercent, formatToman, formatCurrencyInput, parseCurrencyInput, toEnglishDigits } from '../utils/formatting';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface DcaCalculatorModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
   portfolioAssets,
   prices,
 }) => {
+  const { t, language } = useTranslation();
   const defaultSymbol = portfolioAssets.length > 0 ? portfolioAssets[0].symbol : 'GOLD18';
   const [selectedSymbol, setSelectedSymbol] = useState<string>(defaultSymbol);
   const [newAmountToman, setNewAmountToman] = useState<string>('50,000,000');
@@ -52,7 +54,7 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
     ? ((newAvgPrice - currentAvgPrice) / currentAvgPrice) * 100
     : 0;
 
-  const assetInfo = getAssetDetail(selectedSymbol);
+  const assetInfo = getAssetDetail(selectedSymbol, language);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -80,16 +82,17 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
             </div>
             <div>
               <h2 className="font-black text-base sm:text-lg text-slate-800 dark:text-white flex items-center gap-2">
-                ماشین‌حساب هوشمند میانگین‌کم‌کنی (DCA)
+                {t('dca.title')}
               </h2>
               <p className="text-[11px] text-slate-400 font-bold mt-0.5">
-                شبیه‌سازی خرید پله‌ای و محاسبه میانگین قیمت سر‌به‌سر جدید
+                {t('dca.subtitle')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 rounded-2xl bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-all"
+            aria-label={t('common.close')}
           >
             <X size={18} />
           </button>
@@ -100,7 +103,7 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
           
           {/* Asset Selection */}
           <div className="space-y-1.5">
-            <label className="text-xs font-black text-slate-400 px-1">انتخاب دارایی جهت میانگین‌گیری</label>
+            <label className="text-xs font-black text-slate-400 px-1">{t('dca.selectAsset')}</label>
             <select
               value={selectedSymbol}
               onChange={(e) => {
@@ -111,7 +114,7 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
             >
               {allAssets.map(a => (
                 <option key={a.symbol} value={a.symbol}>
-                  {a.name} ({a.symbol}) {portfolioAssets.some(p => p.symbol === a.symbol) ? '• در سبد شما' : ''}
+                  {getAssetDetail(a.symbol, language).name} ({a.symbol}) {portfolioAssets.some(p => p.symbol === a.symbol) ? (language === 'en' ? '• In Portfolio' : '• در سبد شما') : ''}
                 </option>
               ))}
             </select>
@@ -120,15 +123,15 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
           {/* Current State Info */}
           <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 grid grid-cols-2 gap-3 text-xs">
             <div>
-              <div className="text-slate-400 font-bold text-[10px]">موجودی فعلی در سبد</div>
+              <div className="text-slate-400 font-bold text-[10px]">{t('dca.currentHoldings')}</div>
               <div className="font-black text-slate-800 dark:text-slate-100 text-sm mt-0.5">
-                {formatNumber(currentQty)} {assetInfo.name}
+                {formatNumber(currentQty, 3, language)} {assetInfo.name}
               </div>
             </div>
             <div>
-              <div className="text-slate-400 font-bold text-[10px]">میانگین خرید فعلی</div>
+              <div className="text-slate-400 font-bold text-[10px]">{t('dca.currentAvgPrice')}</div>
               <div className="font-black text-slate-800 dark:text-slate-100 text-sm mt-0.5">
-                {currentQty > 0 ? formatToman(currentAvgPrice) : 'بدون خرید قبلی'} {currentQty > 0 && <span className="text-[10px] opacity-70">ت</span>}
+                {currentQty > 0 ? formatToman(currentAvgPrice, language) : (language === 'en' ? 'No prior buys' : 'بدون خرید قبلی')} {currentQty > 0 && <span className="text-[10px] opacity-70">{t('common.toman')}</span>}
               </div>
             </div>
           </div>
@@ -136,13 +139,13 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
           {/* Inputs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-400 px-1">مبلغ خرید جدید (تومان)</label>
+              <label className="text-xs font-black text-slate-400 px-1">{t('dca.newAmount')}</label>
               <input
                 type="text"
                 value={newAmountToman}
                 onChange={handleAmountChange}
                 className="w-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-white"
-                placeholder="۵۰,۰۰۰,۰۰۰"
+                placeholder="50,000,000"
                 dir="ltr"
               />
               {/* Quick Amount Presets */}
@@ -154,7 +157,7 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
                     onClick={() => setNewAmountToman(formatCurrencyInput(val))}
                     className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-[10px] font-bold text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all"
                   >
-                    {val >= 100000000 ? `${val / 100000000}۰۰ م` : `${val / 1000000} م`}
+                    {language === 'en' ? `${val / 1000000}M` : (val >= 100000000 ? `${val / 100000000}۰۰ م` : `${val / 1000000} م`)}
                   </button>
                 ))}
               </div>
@@ -162,13 +165,13 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
 
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-400 px-1 flex items-center justify-between">
-                <span>قیمت واحد خرید (تومان)</span>
+                <span>{t('dca.unitBuyPrice')}</span>
                 <button
                   type="button"
                   onClick={() => setCustomPriceToman(formatCurrencyInput(Math.round(livePrice)))}
                   className="text-[10px] text-blue-500 font-bold hover:underline"
                 >
-                  لحظه‌ای: {formatToman(livePrice)}
+                  {t('market.livePrice')}: {formatToman(livePrice, language)}
                 </button>
               </label>
               <input
@@ -180,7 +183,7 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
                 dir="ltr"
               />
               <span className="text-[10px] text-slate-400 block px-1">
-                (در صورت خالی بودن، قیمت لحظه‌ای لحاظ می‌شود)
+                {language === 'en' ? '(If empty, live market price is used)' : '(در صورت خالی بودن، قیمت لحظه‌ای لحاظ می‌شود)'}
               </span>
             </div>
           </div>
@@ -188,45 +191,45 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
           {/* Simulation Output Card */}
           <div className="p-5 rounded-[24px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
-              <span className="text-xs font-black text-slate-400">نتیجه شبیه‌سازی خرید جدید</span>
+              <span className="text-xs font-black text-slate-400">{t('dca.simulationResult')}</span>
               <div className="flex items-center gap-1 text-[11px] font-black px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 <Sparkles size={12} />
-                <span>+ {formatNumber(newUnits)} واحد جدید</span>
+                <span>+ {formatNumber(newUnits, 3, language)} {language === 'en' ? 'New Units' : 'واحد جدید'}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-1">میانگین خرید جدید شما</span>
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">{t('dca.newAvgPrice')}</span>
                 <div className="text-base sm:text-lg font-black text-amber-400">
-                  {formatToman(newAvgPrice)} <span className="text-xs text-slate-300 font-normal">تومان</span>
+                  {formatToman(newAvgPrice, language)} <span className="text-xs text-slate-300 font-normal">{t('common.toman')}</span>
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-1">تغییر میانگین قیمت</span>
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">{t('dca.avgPriceChange')}</span>
                 <div className={`text-base sm:text-lg font-black flex items-center gap-1 ${
                   avgChangePercent < 0 ? 'text-emerald-400' : 'text-rose-400'
                 }`}>
                   {avgChangePercent < 0 ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
-                  <span>{formatPercent(Math.abs(avgChangePercent))}</span>
+                  <span>{formatPercent(Math.abs(avgChangePercent), language)}</span>
                   <span className="text-xs font-bold text-slate-300">
-                    ({avgChangePercent < 0 ? 'کاهش قیمت خرید' : 'افزایش'})
+                    ({avgChangePercent < 0 ? (language === 'en' ? 'Price Reduction' : 'کاهش قیمت خرید') : (language === 'en' ? 'Price Increase' : 'افزایش')})
                   </span>
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-1">مجموع موجودی پس از خرید</span>
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">{t('dca.totalUnitsAfter')}</span>
                 <div className="text-sm font-black text-white">
-                  {formatNumber(totalUnitsAfter)} {assetInfo.name}
+                  {formatNumber(totalUnitsAfter, 3, language)} {assetInfo.name}
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-1">مجموع سرمایه اختصاص‌یافته</span>
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">{t('dca.totalCostAfter')}</span>
                 <div className="text-sm font-black text-white">
-                  {formatToman(totalCostBasisAfter)} <span className="text-xs text-slate-400">ت</span>
+                  {formatToman(totalCostBasisAfter, language)} <span className="text-xs text-slate-400">{language === 'en' ? 'T' : 'ت'}</span>
                 </div>
               </div>
             </div>
@@ -241,7 +244,7 @@ export const DcaCalculatorModal: React.FC<DcaCalculatorModalProps> = ({
             onClick={onClose}
             className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-lg shadow-blue-600/25 transition-all"
           >
-            بستن ماشین‌حساب
+            {t('common.close')}
           </button>
         </footer>
 

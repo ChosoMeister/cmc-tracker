@@ -5,6 +5,7 @@ import { ASSET_DETAILS, AssetSymbol, Currency, Transaction, TransactionType, get
 import { formatCurrencyInput, parseCurrencyInput } from '../utils/formatting';
 import { JalaliDatePicker } from './JalaliDatePicker';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   onDelete,
   initialData
 }) => {
+  const { t, language } = useTranslation();
   const [assetSymbol, setAssetSymbol] = useState<AssetSymbol>('USD');
   const [type, setType] = useState<TransactionType>('BUY');
   const [quantity, setQuantity] = useState('');
@@ -48,8 +50,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const mutedText = 'text-[color:var(--text-muted)]';
 
-  const WALLET_SUGGESTIONS = ['نوبیتکس', 'والکس', 'بایننس', 'لجر (Ledger)', 'تراست ولت', 'گاوصندوق خانگی', 'بانک'];
-  const TAG_SUGGESTIONS = ['#هولد_بلندمدت', '#نوسان‌گیری', '#پس‌انداز_اضطراری', '#سرمایه‌گذاری_ماهانه'];
+  const WALLET_SUGGESTIONS = language === 'en'
+    ? ['Nobitex', 'Wallex', 'Binance', 'Ledger', 'Trust Wallet', 'Home Safe', 'Bank']
+    : ['نوبیتکس', 'والکس', 'بایننس', 'لجر (Ledger)', 'تراست ولت', 'گاوصندوق خانگی', 'بانک'];
+
+  const TAG_SUGGESTIONS = language === 'en'
+    ? ['#long_term', '#scalping', '#emergency_fund', '#monthly_dca']
+    : ['#هولد_بلندمدت', '#نوسان‌گیری', '#پس‌انداز_اضطراری', '#سرمایه‌گذاری_ماهانه'];
 
   useEffect(() => {
     if (initialData) {
@@ -116,10 +123,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   const assetOptions = Object.entries(ASSET_DETAILS).map(([key, val]) => ({
     symbol: key as AssetSymbol,
-    ...val
+    ...val,
+    name: getAssetDetail(key as AssetSymbol, language).name
   }));
 
-  const isCrypto = getAssetDetail(assetSymbol).type === 'CRYPTO';
+  const isCrypto = getAssetDetail(assetSymbol, language).type === 'CRYPTO';
 
   return (
     <>
@@ -127,9 +135,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         <div className="bg-[var(--card-bg)] text-[color:var(--text-primary)] w-full max-w-sm max-h-[90vh] flex flex-col rounded-[32px] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300 border border-[color:var(--border-color)]">
           <div className="px-6 py-5 border-b border-[color:var(--border-color)] flex justify-between items-center bg-[color:var(--muted-surface)]">
             <h3 className="font-black text-[color:var(--text-primary)]">
-              {initialData ? 'ویرایش تراکنش' : 'افزودن تراکنش خرید'}
+              {initialData ? t('tx.editTitle') : t('tx.addTitle')}
             </h3>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] text-[color:var(--text-muted)] transition-colors">
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] text-[color:var(--text-muted)] transition-colors" aria-label={t('common.close')}>
               <X size={20} />
             </button>
           </div>
@@ -147,7 +155,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
                 }`}
               >
-                <span>خرید دارایی (Buy)</span>
+                <span>{t('tx.buy')}</span>
               </button>
               <button
                 type="button"
@@ -158,19 +166,19 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
                 }`}
               >
-                <span>فروش دارایی (Sell)</span>
+                <span>{t('tx.sell')}</span>
               </button>
             </div>
 
             {/* Asset Selection */}
             <div className="space-y-1.5">
-              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>انتخاب دارایی</label>
+              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>{t('tx.selectAsset')}</label>
               <select
                 value={assetSymbol}
                 onChange={(e) => {
                   const newSymbol = e.target.value as AssetSymbol;
                   setAssetSymbol(newSymbol);
-                  if (getAssetDetail(newSymbol).type === 'CRYPTO') setCurrency('USD');
+                  if (getAssetDetail(newSymbol, language).type === 'CRYPTO') setCurrency('USD');
                   else setCurrency('TOMAN');
                 }}
                 className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-3.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none text-[color:var(--text-primary)]"
@@ -185,23 +193,23 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>مقدار</label>
+                <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>{t('tx.amount')}</label>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={quantity}
                   onChange={(e) => setQuantity(formatQuantityInput(e.target.value))}
-                  placeholder="۰"
+                  placeholder="0"
                   className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-3.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-left text-[color:var(--text-primary)]"
                   dir="ltr"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>تاریخ</label>
+                <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>{t('tx.date')}</label>
                 <JalaliDatePicker
                   value={date}
                   onChange={setDate}
-                  placeholder="انتخاب تاریخ"
+                  placeholder={language === 'en' ? 'Select Date' : 'انتخاب تاریخ'}
                 />
               </div>
             </div>
@@ -209,7 +217,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             {/* Price */}
             <div className="space-y-1.5">
               <div className="flex justify-between items-center px-1">
-                <label className={`text-[10px] font-black uppercase tracking-widest ${mutedText}`}>قیمت واحد</label>
+                <label className={`text-[10px] font-black uppercase tracking-widest ${mutedText}`}>{t('tx.unitPrice')}</label>
                 {isCrypto && (
                   <div className="flex gap-2 text-[10px] font-black">
                     <button
@@ -230,24 +238,24 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(formatCurrencyInput(e.target.value))}
-                  placeholder={currency === 'USD' ? 'Price in USD' : 'قیمت به تومان'}
-                  className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-3.5 text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all text-left pl-12 text-[color:var(--text-primary)]"
+                  placeholder={currency === 'USD' ? 'Price in USD' : (language === 'en' ? 'Price in Toman' : 'قیمت به تومان')}
+                  className={`w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-3.5 text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all text-left ${language === 'en' ? 'pl-8 pr-4' : 'pl-12 pr-4'} text-[color:var(--text-primary)]`}
                   dir="ltr"
                 />
-                <div className={`absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black ${mutedText} pointer-events-none`}>
-                  {currency === 'USD' ? '$' : 'T'}
+                <div className={`absolute ${language === 'en' ? 'left-3' : 'left-4'} top-1/2 -translate-y-1/2 text-xs font-black ${mutedText} pointer-events-none`}>
+                  {currency === 'USD' ? '$' : (language === 'en' ? 'T' : 'ت')}
                 </div>
               </div>
             </div>
 
             {/* Wallet / Exchange */}
             <div className="space-y-1.5">
-              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>محل نگهداری / صرافی / کیف‌پول</label>
+              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>{t('tx.walletExchange')}</label>
               <input
                 type="text"
                 value={wallet}
                 onChange={(e) => setWallet(e.target.value)}
-                placeholder="مثلاً: نوبیتکس، لجر، گاوصندوق، بایننس..."
+                placeholder={language === 'en' ? 'e.g., Binance, Ledger, Safe...' : 'مثلاً: نوبیتکس، لجر، گاوصندوق، بایننس...'}
                 className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-3 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-[color:var(--text-primary)]"
               />
               <div className="flex flex-wrap gap-1 mt-1">
@@ -266,7 +274,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
             {/* Tags */}
             <div className="space-y-1.5">
-              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>برچسب‌ها (Tags)</label>
+              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>{t('tx.tags')}</label>
               <div className="flex gap-1.5">
                 <input
                   type="text"
@@ -278,7 +286,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       handleAddTag(tagInput);
                     }
                   }}
-                  placeholder="افزودن برچسب (مثلاً #هولد)..."
+                  placeholder={language === 'en' ? 'Add tag (e.g., #dca)...' : 'افزودن برچسب (مثلاً #هولد)...'}
                   className="flex-1 bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-2.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-[color:var(--text-primary)]"
                 />
                 <button
@@ -286,7 +294,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   onClick={() => handleAddTag(tagInput)}
                   className="px-3 bg-blue-600/10 text-blue-600 rounded-2xl text-xs font-black hover:bg-blue-600/20"
                 >
-                  افزودن
+                  {t('tx.addTag')}
                 </button>
               </div>
 
@@ -311,14 +319,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               )}
 
               <div className="flex flex-wrap gap-1 mt-1">
-                {TAG_SUGGESTIONS.map(t => (
+                {TAG_SUGGESTIONS.map(tLabel => (
                   <button
-                    key={t}
+                    key={tLabel}
                     type="button"
-                    onClick={() => handleAddTag(t)}
+                    onClick={() => handleAddTag(tLabel)}
                     className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[color:var(--pill-bg)] text-[color:var(--text-muted)] hover:text-blue-500 transition-colors"
                   >
-                    {t}
+                    {tLabel}
                   </button>
                 ))}
               </div>
@@ -338,10 +346,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               <Check size={18} strokeWidth={3} />
               <span>
                 {initialData
-                  ? 'بروزرسانی تغییرات'
+                  ? t('tx.update')
                   : type === 'SELL'
-                  ? 'ثبت تراکنش فروش'
-                  : 'ثبت تراکنش خرید'}
+                  ? t('tx.recordSell')
+                  : t('tx.recordBuy')}
               </span>
             </button>
 
@@ -351,7 +359,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 className="w-full bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-500 font-bold py-3 rounded-2xl flex items-center justify-center gap-2 transition-all"
               >
                 <Trash2 size={18} />
-                <span>حذف تراکنش</span>
+                <span>{t('tx.delete')}</span>
               </button>
             )}
           </div>
@@ -361,10 +369,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="حذف تراکنش"
-        message="آیا از حذف این تراکنش اطمینان دارید؟ این عمل غیرقابل بازگشت است."
-        confirmLabel="حذف"
-        cancelLabel="انصراف"
+        title={t('tx.deleteConfirmTitle')}
+        message={t('tx.deleteConfirmMessage')}
+        confirmLabel={t('tx.delete')}
+        cancelLabel={t('common.cancel')}
         variant="danger"
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}

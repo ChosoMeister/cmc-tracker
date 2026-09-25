@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Calendar, Sparkles, Filter, Database } from '
 import { Transaction, PriceData, AssetSummary, MarketHistoryMap } from '../types';
 import { formatNumber, formatPercent, formatToman } from '../utils/formatting';
 import { API } from '../services/api';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface PortfolioHistoryChartProps {
   transactions: Transaction[];
@@ -51,6 +52,7 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
   currentTotalValue,
   currentCostBasis,
 }) => {
+  const { t, language } = useTranslation();
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL');
   const [serverHistory, setServerHistory] = useState<MarketHistoryMap>({});
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
@@ -339,26 +341,26 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
-              روند رشد ارزش سبد دارایی
+              {t('chart.portfolioGrowth')}
             </span>
             <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
               <Database size={11} />
-              <span>{isHistoryLoaded ? 'مبتنی بر آرشیو رسمی بازار' : 'دقیق با نوسانات بازار'}</span>
+              <span>{isHistoryLoaded ? (language === 'en' ? 'Official Market Archive' : 'مبتنی بر آرشیو رسمی بازار') : (language === 'en' ? 'Live Market Trend' : 'دقیق با نوسانات بازار')}</span>
             </span>
           </div>
 
           {activeDisplay && (
             <div className="mt-1 flex items-baseline gap-3">
               <span className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">
-                {formatToman(activeDisplay.value)} <span className="text-xs text-slate-400 font-bold">تومان</span>
+                {formatToman(activeDisplay.value, language)} <span className="text-xs text-slate-400 font-bold">{t('common.toman')}</span>
               </span>
               <div className={`text-xs font-black flex items-center gap-1 ${
                 activeDisplay.profit >= 0 ? 'text-emerald-500' : 'text-rose-500'
               }`}>
                 {activeDisplay.profit >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                <span>{formatPercent(activeDisplay.profitPct)}</span>
+                <span>{formatPercent(activeDisplay.profitPct, language)}</span>
                 <span className="text-[10px] text-slate-400 font-normal">
-                  ({activeDisplay.profit >= 0 ? '+' : ''}{formatToman(activeDisplay.profit)} ت)
+                  ({activeDisplay.profit >= 0 ? '+' : ''}{formatToman(activeDisplay.profit, language)} {language === 'en' ? 'T' : 'ت'})
                 </span>
               </div>
             </div>
@@ -367,29 +369,38 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
           {activeDisplay && (
             <div className="text-[11px] text-slate-400 font-bold mt-0.5 flex items-center gap-1.5">
               <Calendar size={12} />
-              <span>تاریخ: {activeDisplay.jalaliStr}</span>
+              <span>{t('chart.date')}: {language === 'en' ? activeDisplay.dateStr : activeDisplay.jalaliStr}</span>
               <span>•</span>
-              <span>سرمایه ورودی: {formatToman(activeDisplay.cost)} تومان</span>
+              <span>{t('chart.investedCapital')}: {formatToman(activeDisplay.cost, language)} {t('common.toman')}</span>
             </div>
           )}
         </div>
 
         {/* Timeframe selector */}
         <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 self-start sm:self-auto">
-          {(['1M', '3M', '6M', '1Y', 'ALL'] as Timeframe[]).map((tf) => (
-            <button
-              key={tf}
-              type="button"
-              onClick={() => setTimeframe(tf)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
-                timeframe === tf
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
-                  : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-            >
-              {tf === '1M' ? '۱ ماه' : tf === '3M' ? '۳ ماه' : tf === '6M' ? '۶ ماه' : tf === '1Y' ? '۱ سال' : 'همه'}
-            </button>
-          ))}
+          {(['1M', '3M', '6M', '1Y', 'ALL'] as Timeframe[]).map((tf) => {
+            const tfLabels: Record<Timeframe, string> = {
+              '1M': t('chart.oneMonth'),
+              '3M': t('chart.threeMonths'),
+              '6M': t('chart.sixMonths'),
+              '1Y': t('chart.oneYear'),
+              'ALL': t('chart.all'),
+            };
+            return (
+              <button
+                key={tf}
+                type="button"
+                onClick={() => setTimeframe(tf)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  timeframe === tf
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
+                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                {tfLabels[tf]}
+              </button>
+            );
+          })}
         </div>
       </div>
 

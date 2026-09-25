@@ -1,25 +1,29 @@
 
 import { getAssetDetail } from '../types';
 
-export const formatToman = (value: number): string => {
-  return new Intl.NumberFormat('fa-IR').format(Math.round(value));
+export const formatToman = (value: number, lang: 'fa' | 'en' = 'fa'): string => {
+  const locale = lang === 'en' ? 'en-US' : 'fa-IR';
+  return new Intl.NumberFormat(locale).format(Math.round(value));
 };
 
-export const formatNumber = (value: number, decimals = 2): string => {
+export const formatNumber = (value: number, decimals = 2, lang: 'fa' | 'en' = 'fa'): string => {
   // اگر عدد خیلی کوچک بود اعشار بیشتری نشان بده
   const finalDecimals = value < 1 && value > 0 ? Math.max(decimals, 4) : decimals;
-  return new Intl.NumberFormat('fa-IR', {
+  const locale = lang === 'en' ? 'en-US' : 'fa-IR';
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: finalDecimals,
   }).format(value);
 };
 
-export const formatPercent = (value: number): string => {
+export const formatPercent = (value: number, lang: 'fa' | 'en' = 'fa'): string => {
   const sign = value > 0 ? '+' : '';
-  return `${sign}${new Intl.NumberFormat('fa-IR', {
+  const locale = lang === 'en' ? 'en-US' : 'fa-IR';
+  const suffix = lang === 'en' ? '%' : '٪';
+  return `${sign}${new Intl.NumberFormat(locale, {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
-  }).format(value)}٪`;
+  }).format(value)}${suffix}`;
 };
 
 export const toEnglishDigits = (str: string): string => {

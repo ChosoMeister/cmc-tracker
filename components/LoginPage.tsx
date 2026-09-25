@@ -1,14 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
-import { Lock, User, ShieldCheck, UserPlus, LogIn, AlertCircle, Zap, HelpCircle, RefreshCcw } from 'lucide-react';
+import { Lock, User, ShieldCheck, UserPlus, LogIn, AlertCircle, Zap, HelpCircle, RefreshCcw, Globe } from 'lucide-react';
 import { API } from '../services/api';
 import { SESSION_USER_KEY } from '../services/authService';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface LoginPageProps {
   onLoginSuccess: (user: { username: string, isAdmin: boolean, displayName?: string }) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+  const { t, language, toggleLanguage } = useTranslation();
   const [isRegister, setIsRegister] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
   const [username, setUsername] = useState('');
@@ -23,7 +24,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [showFastLogin, setShowFastLogin] = useState(false);
   const [questionLoading, setQuestionLoading] = useState(false);
 
-  // اگر بعد از ۵ ثانیه لودینگ تمام نشد، دکمه ورود سریع را نشان بده
   useEffect(() => {
     let timer: any;
     if (loading) {
@@ -60,7 +60,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       } catch (err: any) {
         if (cancelled) return;
         setSecurityQuestion('');
-        setError(err?.message || 'دریافت سوال امنیتی ممکن نشد');
+        setError(err?.message || (language === 'en' ? 'Could not retrieve security question' : 'دریافت سوال امنیتی ممکن نشد'));
         clearErrorTimer = setTimeout(() => {
           if (!cancelled) setError('');
         }, 2000);
@@ -74,7 +74,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       clearTimeout(debounceTimer);
       if (clearErrorTimer) clearTimeout(clearErrorTimer);
     };
-  }, [username, isForgot]);
+  }, [username, isForgot, language]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,19 +94,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     try {
       if (isForgot) {
-        if (!username) throw new Error('نام کاربری را وارد کنید');
-        if (!securityAnswer || !newPassword) throw new Error('پاسخ و گذرواژه جدید را تکمیل کنید');
+        if (!username) throw new Error(language === 'en' ? 'Please enter username' : 'نام کاربری را وارد کنید');
+        if (!securityAnswer || !newPassword) throw new Error(language === 'en' ? 'Please fill security answer and new password' : 'پاسخ و گذرواژه جدید را تکمیل کنید');
         await API.resetPasswordWithSecurityAnswer(username, securityAnswer, newPassword);
-        setNotice('رمز عبور با موفقیت تغییر کرد. اکنون می‌توانید وارد شوید.');
+        setNotice(language === 'en' ? 'Password reset successfully. You can now sign in.' : 'رمز عبور با موفقیت تغییر کرد. اکنون می‌توانید وارد شوید.');
         setIsForgot(false);
-        setIsRegister(false);
-        setPassword(newPassword);
+        setPassword('');
         setNewPassword('');
         setSecurityAnswer('');
+        setSecurityQuestion('');
       } else if (isRegister) {
-        if (password.length < 4) throw new Error('رمز عبور باید حداقل ۴ کاراکتر باشد');
-        if (!securityQuestion || !securityAnswer) throw new Error('سوال و پاسخ امنیتی را وارد کنید');
-        const user = await API.register(username, password, displayName || username, securityQuestion, securityAnswer);
+        if (!securityQuestion || !securityAnswer) {
+          throw new Error(language === 'en' ? 'Please complete security question and answer for account recovery' : 'لطفاً سوال و جواب امنیتی را برای بازیابی رمز در آینده تکمیل کنید');
+        }
+        const user = await API.register(username, password, displayName || '', securityQuestion, securityAnswer);
         persistSessionUser(user!);
         onLoginSuccess(user!);
       } else {
@@ -116,17 +117,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       }
     } catch (err: any) {
       console.error("Login component error:", err);
-      setError(err.message || 'نام کاربری یا رمز عبور اشتباه است');
+      setError(err.message || (language === 'en' ? 'Invalid username or password' : 'نام کاربری یا رمز عبور اشتباه است'));
       setLoading(false);
     } finally {
-      // اطمینان از قطع شدن لودینگ در همه سناریوها (به‌خصوص بعد از تغییر رمز)
       setLoading(false);
     }
   };
 
   const handleFastLogin = () => {
-    // ورود مستقیم با اکانت ادمین پیش‌فرض
-    const user = { username: 'admin', isAdmin: true, displayName: 'ادمین سیستم' };
+    const user = { username: 'admin', isAdmin: true, displayName: language === 'en' ? 'System Admin' : 'ادمین سیستم' };
     localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
     onLoginSuccess(user);
   };
@@ -137,61 +136,77 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 blur-[120px] rounded-full"></div>
 
       <div className="w-full max-w-[400px] p-6 relative z-10 animate-in fade-in zoom-in duration-500">
-        <div className="bg-white/10 backdrop-blur-2xl border border-white/10 rounded-[40px] p-8 shadow-2xl">
+        <div className="bg-white/10 backdrop-blur-2xl border border-white/10 rounded-[40px] p-8 shadow-2xl relative">
+          
+          {/* Language Switcher Button */}
+          <div className="absolute top-6 left-6">
+            <button
+              type="button"
+              onClick={() => toggleLanguage()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black transition-all border border-white/10"
+              title={language === 'fa' ? 'Switch to English' : 'تغییر به فارسی'}
+            >
+              <Globe size={13} />
+              <span>{language === 'fa' ? 'EN' : 'فا'}</span>
+            </button>
+          </div>
+
           <div className="flex flex-col items-center mb-10">
             <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-600/40 mb-6 rotate-12 transition-transform hover:rotate-0 duration-500">
               <ShieldCheck size={40} className="text-white" />
             </div>
             <h1 className="text-3xl font-black text-white mb-2">
-              {isForgot ? 'بازیابی رمز عبور' : isRegister ? 'ایجاد حساب' : 'خوش آمدید'}
+              {isForgot ? (language === 'en' ? 'Reset Password' : 'بازیابی رمز عبور') : isRegister ? (language === 'en' ? 'Create Account' : 'ایجاد حساب') : (language === 'en' ? 'Welcome Back' : 'خوش آمدید')}
             </h1>
-            <p className="text-slate-400 text-sm font-medium">پرتفولیو هوشمند</p>
+            <p className="text-slate-400 text-sm font-medium">
+              {language === 'en' ? 'Smart Asset Portfolio' : 'پرتفولیو هوشمند'}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="relative group">
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+              <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors`}>
                 <User size={18} />
               </div>
               <input
                 type="text"
-                placeholder="نام کاربری"
+                placeholder={language === 'en' ? 'Username' : 'نام کاربری'}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                dir="rtl"
+                className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all`}
+                dir={language === 'en' ? 'ltr' : 'rtl'}
                 required
               />
             </div>
 
             {isRegister && (
               <div className="relative group">
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors`}>
                   <UserPlus size={18} />
                 </div>
                 <input
                   type="text"
-                  placeholder="نام نمایشی در برنامه"
+                  placeholder={language === 'en' ? 'Display Name' : 'نام نمایشی در برنامه'}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                  dir="rtl"
+                  className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all`}
+                  dir={language === 'en' ? 'ltr' : 'rtl'}
                 />
               </div>
             )}
 
             {!isForgot && (
               <div className="relative group">
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors`}>
                   <Lock size={18} />
                 </div>
                 <input
                   type="password"
-                  placeholder="رمز عبور"
+                  placeholder={language === 'en' ? 'Password' : 'رمز عبور'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                  dir="rtl"
+                  className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all`}
+                  dir={language === 'en' ? 'ltr' : 'rtl'}
                   required
                 />
               </div>
@@ -200,42 +215,43 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             {isForgot && (
               <div className="space-y-3">
                 <div className="relative group">
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition-colors">
+                  <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 transition-colors`}>
                     <HelpCircle size={18} className={questionLoading ? 'animate-pulse' : ''} />
                   </div>
                   <input
                     type="text"
-                    value={securityQuestion || (questionLoading ? 'در حال دریافت...' : '')}
+                    value={securityQuestion || (questionLoading ? (language === 'en' ? 'Loading...' : 'در حال دریافت...') : '')}
                     readOnly
-                    placeholder="سوال امنیتی نمایش داده می‌شود"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none text-right opacity-80"
+                    placeholder={language === 'en' ? 'Security question will appear here' : 'سوال امنیتی نمایش داده می‌شود'}
+                    className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none opacity-80`}
+                    dir={language === 'en' ? 'ltr' : 'rtl'}
                   />
                 </div>
                 <div className="relative group">
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                  <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors`}>
                     <ShieldCheck size={18} />
                   </div>
                   <input
                     type="text"
-                    placeholder="پاسخ امنیتی"
+                    placeholder={language === 'en' ? 'Security Answer' : 'پاسخ امنیتی'}
                     value={securityAnswer}
                     onChange={(e) => setSecurityAnswer(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                    dir="rtl"
+                    className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all`}
+                    dir={language === 'en' ? 'ltr' : 'rtl'}
                     required
                   />
                 </div>
                 <div className="relative group">
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                  <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors`}>
                     <Lock size={18} />
                   </div>
                   <input
                     type="password"
-                    placeholder="رمز عبور جدید"
+                    placeholder={language === 'en' ? 'New Password' : 'رمز عبور جدید'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                    dir="rtl"
+                    className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all`}
+                    dir={language === 'en' ? 'ltr' : 'rtl'}
                     required
                   />
                 </div>
@@ -245,30 +261,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             {isRegister && (
               <>
                 <div className="relative group">
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                  <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors`}>
                     <HelpCircle size={18} />
                   </div>
                   <input
                     type="text"
-                    placeholder="سوال امنیتی شما"
+                    placeholder={language === 'en' ? 'Your Security Question' : 'سوال امنیتی شما'}
                     value={securityQuestion}
                     onChange={(e) => setSecurityQuestion(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                    dir="rtl"
+                    className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all`}
+                    dir={language === 'en' ? 'ltr' : 'rtl'}
                     required
                   />
                 </div>
                 <div className="relative group">
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                  <div className={`absolute ${language === 'en' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors`}>
                     <ShieldCheck size={18} />
                   </div>
                   <input
                     type="text"
-                    placeholder="پاسخ امنیتی"
+                    placeholder={language === 'en' ? 'Security Answer' : 'پاسخ امنیتی'}
                     value={securityAnswer}
                     onChange={(e) => setSecurityAnswer(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                    dir="rtl"
+                    className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 ${language === 'en' ? 'pl-12 pr-4 text-left' : 'pr-12 pl-4 text-right'} text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all`}
+                    dir={language === 'en' ? 'ltr' : 'rtl'}
                     required
                   />
                 </div>
@@ -298,7 +314,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>{isForgot ? 'بازیابی رمز' : isRegister ? 'ثبت‌نام و ورود' : 'ورود به سیستم'}</span>
+                  <span>
+                    {isForgot 
+                      ? (language === 'en' ? 'Reset Password' : 'بازیابی رمز') 
+                      : isRegister 
+                        ? (language === 'en' ? 'Register & Enter' : 'ثبت‌نام و ورود') 
+                        : (language === 'en' ? 'Sign In' : 'ورود به سیستم')}
+                  </span>
                   {isForgot ? <RefreshCcw size={18} /> : isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
                 </>
               )}
@@ -311,7 +333,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 className="w-full bg-amber-500/10 border border-amber-500/20 text-amber-500 font-black py-4 rounded-2xl flex items-center justify-center gap-3 animate-bounce mt-2"
               >
                 <Zap size={18} />
-                <span>ورود اضطراری (آفلاین)</span>
+                <span>{language === 'en' ? 'Fast Login (Offline)' : 'ورود اضطراری (آفلاین)'}</span>
               </button>
             )}
 
@@ -328,7 +350,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               }}
               className="w-full text-slate-400 text-xs font-bold py-2 hover:text-white transition-colors"
             >
-              {isRegister ? 'قبلاً حساب داشته‌اید؟ وارد شوید' : 'حساب کاربری ندارید؟ ثبت‌نام کنید'}
+              {isRegister 
+                ? (language === 'en' ? 'Already have an account? Sign in' : 'قبلاً حساب داشته‌اید؟ وارد شوید') 
+                : (language === 'en' ? "Don't have an account? Register" : 'حساب کاربری ندارید؟ ثبت‌نام کنید')}
             </button>
             <button
               type="button"
@@ -344,7 +368,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               }}
               className="w-full text-slate-400 text-xs font-bold py-2 hover:text-white transition-colors"
             >
-              {isForgot ? 'بازگشت به ورود' : 'رمز عبور را فراموش کرده‌اید؟'}
+              {isForgot 
+                ? (language === 'en' ? 'Back to Sign In' : 'بازگشت به ورود') 
+                : (language === 'en' ? 'Forgot your password?' : 'رمز عبور را فراموش کرده‌اید؟')}
             </button>
           </form>
         </div>

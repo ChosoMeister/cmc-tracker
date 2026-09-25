@@ -15,9 +15,11 @@ import {
   Shield, 
   RefreshCw,
   Sparkles,
-  Layers
+  Layers,
+  Languages
 } from 'lucide-react';
 import * as AuthService from '../services/authService';
+import { useTranslation } from '../contexts/LanguageContext';
 
 export type ThemeOption = 'light' | 'dark' | 'system';
 
@@ -56,6 +58,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onPriceUpdate,
   isPriceUpdating
 }) => {
+  const { t, language, setLanguage } = useTranslation();
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [nameValue, setNameValue] = useState(displayName);
@@ -79,14 +82,14 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass !== confirmPass) {
-      setStatus({ type: 'error', msg: 'تکرار رمز عبور مطابقت ندارد' });
+      setStatus({ type: 'error', msg: language === 'en' ? 'Passwords do not match' : 'تکرار رمز عبور مطابقت ندارد' });
       return;
     }
 
     try {
       setSavingPassword(true);
       await AuthService.updatePassword(username, newPass);
-      setStatus({ type: 'success', msg: 'رمز عبور با موفقیت بروزرسانی شد' });
+      setStatus({ type: 'success', msg: language === 'en' ? 'Password updated successfully' : 'رمز عبور با موفقیت بروزرسانی شد' });
       setTimeout(() => {
         onClose();
         setStatus({ type: null, msg: '' });
@@ -94,7 +97,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         setConfirmPass('');
       }, 1200);
     } catch (error: any) {
-      setStatus({ type: 'error', msg: error?.message || 'خطا در بروزرسانی رمز عبور' });
+      setStatus({ type: 'error', msg: error?.message || (language === 'en' ? 'Error updating password' : 'خطا در بروزرسانی رمز عبور') });
     } finally {
       setSavingPassword(false);
     }
@@ -103,13 +106,13 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const handleSaveDisplayName = (e: React.FormEvent) => {
     e.preventDefault();
     onDisplayNameChange(nameValue.trim() || displayName);
-    setStatus({ type: 'success', msg: 'نام نمایشی ذخیره شد' });
+    setStatus({ type: 'success', msg: language === 'en' ? 'Display name saved' : 'نام نمایشی ذخیره شد' });
   };
 
   return (
     <div className="fixed inset-0 z-[120]">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full sm:max-w-md bg-[var(--app-bg)] text-[color:var(--text-primary)] shadow-2xl rounded-l-[24px] sm:rounded-l-[32px] overflow-hidden animate-in slide-in-from-right duration-300">
+      <div className={`fixed inset-y-0 ${language === 'en' ? 'left-0 rounded-r-[24px] sm:rounded-r-[32px]' : 'right-0 rounded-l-[24px] sm:rounded-l-[32px]'} w-full sm:max-w-md bg-[var(--app-bg)] text-[color:var(--text-primary)] shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300`}>
         <div className="h-full overflow-y-auto no-scrollbar">
           <div className="p-6 border-b border-[color:var(--border-color)] flex items-center justify-between sticky top-0 bg-[var(--app-bg)] z-10">
             <div className="flex items-center gap-3">
@@ -117,11 +120,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <UserCircle size={22} />
               </div>
               <div>
-                <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">تنظیمات حساب</p>
+                <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.accountSettings')}</p>
                 <h2 className="text-lg font-black">{displayName || username}</h2>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-[color:var(--muted-surface)] transition-colors" aria-label="بستن تنظیمات">
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-[color:var(--muted-surface)] transition-colors" aria-label={t('common.close')}>
               <X size={20} />
             </button>
           </div>
@@ -130,7 +133,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             
             {/* Quick Tools for Mobile */}
             <div className="space-y-3">
-              <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">ابزارهای کاربردی</p>
+              <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{language === 'en' ? 'Quick Utilities' : 'ابزارهای کاربردی'}</p>
               <div className="grid grid-cols-2 gap-2.5">
                 {onOpenGoldBubble && (
                   <button
@@ -139,7 +142,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     className="p-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center gap-2.5 text-right transition-all"
                   >
                     <Calculator size={18} className="text-amber-500 shrink-0" />
-                    <span className="text-xs font-black">حباب طلا و سکه</span>
+                    <span className="text-xs font-black">{t('market.bubbleCalc')}</span>
                   </button>
                 )}
                 {onOpenDcaCalculator && (
@@ -149,7 +152,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     className="p-3 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 flex items-center gap-2.5 text-right transition-all"
                   >
                     <Layers size={18} className="text-indigo-500 shrink-0" />
-                    <span className="text-xs font-black">میانگین‌کم‌کنی DCA</span>
+                    <span className="text-xs font-black">{t('common.dcaCalculator')}</span>
                   </button>
                 )}
                 {onOpenExportImport && (
@@ -159,7 +162,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     className="p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center gap-2.5 text-right transition-all"
                   >
                     <Download size={18} className="text-emerald-500 shrink-0" />
-                    <span className="text-xs font-black">خروجی و ورودی</span>
+                    <span className="text-xs font-black">{t('common.exportImport')}</span>
                   </button>
                 )}
                 {onPriceUpdate && (
@@ -170,7 +173,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     className="p-3 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center gap-2.5 text-right transition-all"
                   >
                     <RefreshCw size={18} className={`text-blue-500 shrink-0 ${isPriceUpdating ? 'animate-spin' : ''}`} />
-                    <span className="text-xs font-black">بروزرسانی قیمت</span>
+                    <span className="text-xs font-black">{t('market.refreshPrices')}</span>
                   </button>
                 )}
                 {isAdmin && onOpenAdmin && (
@@ -180,9 +183,48 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     className="p-3 rounded-2xl bg-purple-500/10 hover:bg-purple-500/15 border border-purple-500/20 text-purple-700 dark:text-purple-300 flex items-center gap-2.5 text-right transition-all"
                   >
                     <Shield size={18} className="text-purple-500 shrink-0" />
-                    <span className="text-xs font-black">پنل ادمین</span>
+                    <span className="text-xs font-black">{t('common.adminPanel')}</span>
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* Language Selection */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+                  <Languages size={20} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.language')}</p>
+                  <h3 className="text-base font-black">{t('settings.language')}</h3>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setLanguage('fa')}
+                  className={`flex items-center justify-center gap-2 border rounded-2xl p-3 text-center transition-all ${
+                    language === 'fa'
+                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-black shadow-sm'
+                      : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-bold'
+                  }`}
+                >
+                  <span className="text-base">🇮🇷</span>
+                  <span className="text-xs">فارسی (RTL)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage('en')}
+                  className={`flex items-center justify-center gap-2 border rounded-2xl p-3 text-center transition-all ${
+                    language === 'en'
+                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-black shadow-sm'
+                      : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-bold'
+                  }`}
+                >
+                  <span className="text-base">🇬🇧</span>
+                  <span className="text-xs">English (LTR)</span>
+                </button>
               </div>
             </div>
 
@@ -193,18 +235,18 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <Palette size={20} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">نام نمایشی</p>
-                  <h3 className="text-base font-black">اطلاعات حساب</h3>
+                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.displayName')}</p>
+                  <h3 className="text-base font-black">{t('settings.displayName')}</h3>
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-black text-[color:var(--text-muted)] px-1">نامی که در هدر نمایش داده می‌شود</label>
+                <label className="text-xs font-black text-[color:var(--text-muted)] px-1">{t('settings.displayName')}</label>
                 <input
                   type="text"
                   value={nameValue}
                   onChange={(e) => setNameValue(e.target.value)}
                   className="w-full rounded-2xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="نام نمایشی"
+                  placeholder={t('settings.displayName')}
                 />
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -212,7 +254,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   type="submit"
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-2xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all text-xs"
                 >
-                  ذخیره نام
+                  {t('settings.saveName')}
                 </button>
               </div>
             </form>
@@ -224,15 +266,15 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <Palette size={20} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">گزینه‌های تم</p>
-                  <h3 className="text-base font-black">تجربه بصری</h3>
+                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.theme')}</p>
+                  <h3 className="text-base font-black">{t('settings.theme')}</h3>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { key: 'light', label: 'روشن', icon: <SunMedium size={18} /> },
-                  { key: 'dark', label: 'تاریک', icon: <Moon size={18} /> },
-                  { key: 'system', label: 'سیستم', icon: <Laptop2 size={18} /> },
+                  { key: 'light', label: t('settings.light'), icon: <SunMedium size={18} /> },
+                  { key: 'dark', label: t('settings.dark'), icon: <Moon size={18} /> },
+                  { key: 'system', label: t('settings.system'), icon: <Laptop2 size={18} /> },
                 ].map((option) => (
                   <button
                     key={option.key}
@@ -260,25 +302,25 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <Lock size={20} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">تغییر گذرواژه</p>
-                  <h3 className="text-base font-black">امنیت حساب</h3>
+                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.changePassword')}</p>
+                  <h3 className="text-base font-black">{t('settings.security')}</h3>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-[color:var(--text-muted)] px-1">گذرواژه جدید</label>
+                  <label className="text-xs font-black text-[color:var(--text-muted)] px-1">{t('settings.newPassword')}</label>
                   <input
                     type="password"
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
                     className="w-full rounded-2xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="حداقل ۶ کاراکتر"
+                    placeholder={language === 'en' ? 'Minimum 6 characters' : 'حداقل ۶ کاراکتر'}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-[color:var(--text-muted)] px-1">تأیید گذرواژه جدید</label>
+                  <label className="text-xs font-black text-[color:var(--text-muted)] px-1">{t('settings.confirmPassword')}</label>
                   <input
                     type="password"
                     value={confirmPass}
@@ -309,7 +351,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   disabled={savingPassword}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {savingPassword ? 'در حال ذخیره...' : 'به‌روزرسانی گذرواژه'}
+                  {savingPassword ? t('settings.updatingPassword') : t('settings.updatePassword')}
                 </button>
                 <button
                   type="button"
@@ -317,7 +359,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   className="w-full border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-black py-3 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 text-xs"
                 >
                   <LogOut size={16} />
-                  خروج از حساب کاربری
+                  {t('settings.logout')}
                 </button>
               </div>
             </form>

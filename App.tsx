@@ -40,6 +40,7 @@ import * as AuthService from './services/authService';
 import { useToast } from './components/Toast';
 import { TransactionFilter, TransactionFilters, filterTransactions } from './components/TransactionFilter';
 import { useHaptics } from './hooks/useHaptics';
+import { useTranslation } from './contexts/LanguageContext';
 
 // Lazy Load Heavy Components
 const TransactionModal = lazy(() => import('./components/TransactionModal').then(module => ({ default: module.TransactionModal })));
@@ -54,6 +55,7 @@ const MarketBoard = lazy(() => import('./components/MarketBoard').then(module =>
 import { CategoryPills, CategoryFilterType } from './components/CategoryPills';
 
 export default function App() {
+  const { t, language } = useTranslation();
   type SessionUser = { username: string; isAdmin: boolean; displayName?: string };
   const [user, setUser] = useState<SessionUser | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -89,9 +91,9 @@ export default function App() {
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   const fallbackSources = [
-    { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
-    { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
-    { title: 'شبکه اطلاع‌رسانی طلا و ارز', uri: 'https://tgju.org' },
+    { title: language === 'en' ? 'AlanChand Currency Prices' : 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
+    { title: language === 'en' ? 'AlanChand Crypto Prices' : 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
+    { title: language === 'en' ? 'TGJU Gold & Currency Network' : 'شبکه اطلاع‌رسانی طلا و ارز', uri: 'https://tgju.org' },
   ];
 
   useEffect(() => {
@@ -182,14 +184,14 @@ export default function App() {
       const nextSources = result.sources.length ? result.sources : fallbackSources;
       setSources(nextSources);
       if (result.skipped) {
-        const nextTime = result.nextAllowedAt ? new Date(result.nextAllowedAt).toLocaleTimeString('fa-IR') : '';
-        addToast(result.message || (nextTime ? `بروزرسانی بعد از ${nextTime}` : 'بروزرسانی کمتر از یک ساعت مجاز نیست'), 'info');
+        const nextTime = result.nextAllowedAt ? new Date(result.nextAllowedAt).toLocaleTimeString(language === 'en' ? 'en-US' : 'fa-IR') : '';
+        addToast(result.message || (nextTime ? (language === 'en' ? `Update allowed after ${nextTime}` : `بروزرسانی بعد از ${nextTime}`) : (language === 'en' ? 'Update allowed once per hour' : 'بروزرسانی کمتر از یک ساعت مجاز نیست')), 'info');
       } else {
-        addToast('قیمت‌ها با موفقیت بروزرسانی شد', 'success');
+        addToast(language === 'en' ? 'Prices updated successfully' : 'قیمت‌ها با موفقیت بروزرسانی شد', 'success');
       }
     } catch (error) {
       console.error('Price update failed:', error);
-      addToast('خطا در بروزرسانی قیمت‌ها', 'error');
+      addToast(language === 'en' ? 'Failed to update prices' : 'خطا در بروزرسانی قیمت‌ها', 'error');
     } finally {
       setIsPriceUpdating(false);
     }
@@ -489,27 +491,27 @@ export default function App() {
                       <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-emerald-500/30`}>
                         <div className="flex items-center justify-between mb-3">
                           <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black text-xs">
-                            <ArrowUpRight size={16} /> بهترین عملکرد سبد
+                            <ArrowUpRight size={16} /> {language === 'en' ? 'Best Performer' : 'بهترین عملکرد سبد'}
                           </span>
                           {bestPerformer && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" dir="ltr">
-                              {formatPercent(bestPerformer.pnlPercent)}
+                              {formatPercent(bestPerformer.pnlPercent, language)}
                             </span>
                           )}
                         </div>
                         {bestPerformer ? (
                           <div>
                             <div className="font-black text-base sm:text-lg text-slate-800 dark:text-white flex items-center justify-between">
-                              <span>{bestPerformer.name}</span>
+                              <span>{getAssetDetail(bestPerformer.symbol, language).name || bestPerformer.name}</span>
                               <span className="text-xs text-slate-400 font-mono">{bestPerformer.symbol}</span>
                             </div>
                             <div className="text-xs font-bold text-slate-500 mt-1 flex justify-between">
-                              <span>سود خالص:</span>
-                              <span className="font-black text-emerald-600 dark:text-emerald-400" dir="ltr">+{formatToman(bestPerformer.pnlToman)} ت</span>
+                              <span>{language === 'en' ? 'Net PnL:' : 'سود خالص:'}</span>
+                              <span className="font-black text-emerald-600 dark:text-emerald-400" dir="ltr">+{formatToman(bestPerformer.pnlToman, language)} {language === 'en' ? 'T' : 'ت'}</span>
                             </div>
                           </div>
                         ) : (
-                          <div className="text-slate-400 text-xs py-2 font-bold">تراکنشی ثبت نشده است</div>
+                          <div className="text-slate-400 text-xs py-2 font-bold">{language === 'en' ? 'No transactions yet' : 'تراکنشی ثبت نشده است'}</div>
                         )}
                       </div>
 
@@ -517,27 +519,27 @@ export default function App() {
                       <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between relative overflow-hidden transition-all hover:border-rose-500/30`}>
                         <div className="flex items-center justify-between mb-3">
                           <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-black text-xs">
-                            <ArrowDownRight size={16} /> کمترین بازدهی
+                            <ArrowDownRight size={16} /> {language === 'en' ? 'Lowest Return' : 'کمترین بازدهی'}
                           </span>
                           {worstPerformer && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" dir="ltr">
-                              {formatPercent(worstPerformer.pnlPercent)}
+                              {formatPercent(worstPerformer.pnlPercent, language)}
                             </span>
                           )}
                         </div>
                         {worstPerformer ? (
                           <div>
                             <div className="font-black text-base sm:text-lg text-slate-800 dark:text-white flex items-center justify-between">
-                              <span>{worstPerformer.name}</span>
+                              <span>{getAssetDetail(worstPerformer.symbol, language).name || worstPerformer.name}</span>
                               <span className="text-xs text-slate-400 font-mono">{worstPerformer.symbol}</span>
                             </div>
                             <div className="text-xs font-bold text-slate-500 mt-1 flex justify-between">
-                              <span>سود / زیان:</span>
-                              <span className="font-black text-rose-600 dark:text-rose-400" dir="ltr">{formatToman(worstPerformer.pnlToman)} ت</span>
+                              <span>{language === 'en' ? 'PnL:' : 'سود / زیان:'}</span>
+                              <span className="font-black text-rose-600 dark:text-rose-400" dir="ltr">{formatToman(worstPerformer.pnlToman, language)} {language === 'en' ? 'T' : 'ت'}</span>
                             </div>
                           </div>
                         ) : (
-                          <div className="text-slate-400 text-xs py-2 font-bold">تراکنش دوم ثبت نشده است</div>
+                          <div className="text-slate-400 text-xs py-2 font-bold">{language === 'en' ? 'Second transaction not recorded' : 'تراکنش دوم ثبت نشده است'}</div>
                         )}
                       </div>
 
@@ -549,26 +551,26 @@ export default function App() {
                         <div className="flex items-center gap-2">
                           <Layers size={18} className="text-blue-500" />
                           <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-white">
-                            ترکیب دارایی‌های برتر
+                            {language === 'en' ? 'Top Holdings Breakdown' : 'ترکیب دارایی‌های برتر'}
                           </h3>
                         </div>
                         <button
                           onClick={() => { haptic('light'); setTab('holdings'); }}
                           className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
                         >
-                          <span>مشاهده همه</span>
-                          <ArrowRight size={14} className="rotate-180" />
+                          <span>{language === 'en' ? 'View All' : 'مشاهده همه'}</span>
+                          <ArrowRight size={14} className={language === 'en' ? '' : 'rotate-180'} />
                         </button>
                       </div>
 
                       {portfolioSummary.assets.length === 0 ? (
                         <div className="text-center py-8">
-                          <p className="text-slate-400 text-xs font-bold">هنوز دارایی‌ای ثبت نکرده‌اید</p>
+                          <p className="text-slate-400 text-xs font-bold">{language === 'en' ? 'No assets added yet' : 'هنوز دارایی‌ای ثبت نکرده‌اید'}</p>
                           <button
                             onClick={() => openNewTxWithAsset()}
                             className="mt-3 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
                           >
-                            + ثبت اولین خرید
+                            {language === 'en' ? '+ Record First Purchase' : '+ ثبت اولین خرید'}
                           </button>
                         </div>
                       ) : (
@@ -589,20 +591,20 @@ export default function App() {
                                 </div>
                                 <div>
                                   <div className="font-black text-sm text-slate-800 dark:text-white">
-                                    {asset.name}
+                                    {getAssetDetail(asset.symbol, language).name}
                                   </div>
                                   <div className="text-[11px] text-slate-400 font-bold mt-0.5">
-                                    {formatNumber(asset.totalQuantity)} واحد
+                                    {formatNumber(asset.totalQuantity, undefined, language)} {language === 'en' ? 'units' : 'واحد'}
                                   </div>
                                 </div>
                               </div>
 
                               <div className="text-left">
                                 <div className="font-black text-sm text-slate-800 dark:text-white" dir="ltr">
-                                  {formatToman(asset.currentValueToman)} <span className="text-[10px] text-slate-400">ت</span>
+                                  {formatToman(asset.currentValueToman, language)} <span className="text-[10px] text-slate-400">{language === 'en' ? 'T' : 'ت'}</span>
                                 </div>
                                 <div className={`text-[11px] font-bold mt-0.5 ${asset.pnlToman >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} dir="ltr">
-                                  {asset.pnlToman >= 0 ? '+' : ''}{formatPercent(asset.pnlPercent)}
+                                  {asset.pnlToman >= 0 ? '+' : ''}{formatPercent(asset.pnlPercent, language)}
                                 </div>
                               </div>
                             </div>
@@ -622,7 +624,7 @@ export default function App() {
                     {/* Quick Tools Box */}
                     <div className={`${cardSurface} rounded-[28px] sm:rounded-[36px] p-5 sm:p-6 shadow-sm space-y-3`}>
                       <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">
-                        دسترسی سریع به ابزارها
+                        {t('quickTools')}
                       </span>
                       
                       <button
@@ -634,8 +636,8 @@ export default function App() {
                             <Calculator size={18} />
                           </div>
                           <div>
-                            <div className="font-black text-xs sm:text-sm">محاسبه‌گر حباب طلا و سکه</div>
-                            <div className="text-[10px] opacity-80">بررسی حباب امامی، بهار، نیم، ربع و آبشده</div>
+                            <div className="font-black text-xs sm:text-sm">{t('goldBubbleCalc')}</div>
+                            <div className="text-[10px] opacity-80">{t('goldBubbleDesc')}</div>
                           </div>
                         </div>
                         <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
@@ -650,8 +652,8 @@ export default function App() {
                             <Layers size={18} />
                           </div>
                           <div>
-                            <div className="font-black text-xs sm:text-sm">ماشین‌حساب میانگین‌کم‌کنی (DCA)</div>
-                            <div className="text-[10px] opacity-80">شبیه‌سازی خرید پله‌ای و میانگین قیمت سر‌به‌سر</div>
+                            <div className="font-black text-xs sm:text-sm">{t('dcaCalculator')}</div>
+                            <div className="text-[10px] opacity-80">{t('dcaCalcDesc')}</div>
                           </div>
                         </div>
                         <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
@@ -666,8 +668,8 @@ export default function App() {
                             <Download size={18} />
                           </div>
                           <div>
-                            <div className="font-black text-xs sm:text-sm">پشتیبان‌گیری و خروجی اکسل</div>
-                            <div className="text-[10px] opacity-80">دریافت فایل CSV سازگار با اکسل و JSON</div>
+                            <div className="font-black text-xs sm:text-sm">{t('backupExport')}</div>
+                            <div className="text-[10px] opacity-80">{t('backupDesc')}</div>
                           </div>
                         </div>
                         <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
@@ -682,8 +684,8 @@ export default function App() {
                             <Search size={18} />
                           </div>
                           <div>
-                            <div className="font-black text-xs sm:text-sm">پالت دستورات سریع (⌘K)</div>
-                            <div className="text-[10px] opacity-80">ماشین حساب زنده تبدیل ارز و جستجو</div>
+                            <div className="font-black text-xs sm:text-sm">{language === 'en' ? 'Command Palette (⌘K)' : 'پالت دستورات سریع (⌘K)'}</div>
+                            <div className="text-[10px] opacity-80">{language === 'en' ? 'Live currency calculator and search' : 'ماشین حساب زنده تبدیل ارز و جستجو'}</div>
                           </div>
                         </div>
                         <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
@@ -693,7 +695,7 @@ export default function App() {
                     {/* Price Sources Box */}
                     <div className={`${cardSurface} rounded-[28px] sm:rounded-[36px] p-5 sm:p-6 shadow-sm`}>
                       <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-3">
-                        منابع معتبر استعلام قیمت
+                        {t('priceSources')}
                       </span>
                       <div className="flex flex-wrap gap-2">
                         {(sources.length > 0 ? sources : fallbackSources).map((s, i) => (
@@ -730,7 +732,7 @@ export default function App() {
                 <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="جستجو در نام یا نماد دارایی..."
+                  placeholder={t('searchPlaceholder')}
                   value={txFilters.searchQuery}
                   onChange={(e) => setTxFilters(f => ({ ...f, searchQuery: e.target.value }))}
                   className="w-full bg-slate-100 dark:bg-slate-900/80 rounded-2xl py-2.5 pr-10 pl-4 text-xs sm:text-sm font-bold focus:outline-none border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white"
@@ -743,21 +745,21 @@ export default function App() {
                   className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold flex items-center gap-1.5"
                 >
                   <Calculator size={16} />
-                  <span>حباب طلا</span>
+                  <span>{language === 'en' ? 'Gold Bubble' : 'حباب طلا'}</span>
                 </button>
                 <button
                   onClick={() => { haptic('light'); setIsDcaModalOpen(true); }}
                   className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-xs font-bold flex items-center gap-1.5"
                 >
                   <Layers size={16} />
-                  <span>میانگین‌کم‌کنی</span>
+                  <span>{language === 'en' ? 'DCA' : 'میانگین‌کم‌کنی'}</span>
                 </button>
                 <button
                   onClick={() => { haptic('success'); openNewTxWithAsset(); }}
                   className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-600/20"
                 >
                   <Plus size={16} strokeWidth={3} />
-                  <span>افزودن دارایی</span>
+                  <span>{t('addTransaction')}</span>
                 </button>
               </div>
             </div>
@@ -773,9 +775,9 @@ export default function App() {
             {filteredAssets.length === 0 ? (
               <EmptyState
                 type="holdings"
-                title="هنوز دارایی‌ای ثبت نشده"
-                description="با افزودن اولین تراکنش، دارایی‌های شما اینجا نمایش داده می‌شود."
-                actionLabel="افزودن تراکنش"
+                title={language === 'en' ? 'No assets recorded yet' : 'هنوز دارایی‌ای ثبت نشده'}
+                description={language === 'en' ? 'Record your first purchase to view assets here.' : 'با افزودن اولین تراکنش، دارایی‌های شما اینجا نمایش داده می‌شود.'}
+                actionLabel={t('addTransaction')}
                 onAction={() => openNewTxWithAsset()}
               />
             ) : (
@@ -786,14 +788,14 @@ export default function App() {
                     <table className="w-full text-right border-collapse">
                       <thead>
                         <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                          <th className="p-4 pr-6">دارایی / نماد</th>
-                          <th className="p-4">نوع</th>
-                          <th className="p-4 text-left">موجودی</th>
-                          <th className="p-4 text-left">قیمت روز</th>
-                          <th className="p-4 text-left">ارزش کل (تومان)</th>
-                          <th className="p-4 text-left">سود / زیان</th>
-                          <th className="p-4 text-left">سهم از سبد</th>
-                          <th className="p-4 pl-6 text-center">عملیات</th>
+                          <th className="p-4 pr-6">{t('assetSymbol')}</th>
+                          <th className="p-4">{t('type')}</th>
+                          <th className="p-4 text-left">{t('quantity')}</th>
+                          <th className="p-4 text-left">{t('currentPrice')}</th>
+                          <th className="p-4 text-left">{t('totalValue')}</th>
+                          <th className="p-4 text-left">{t('pnl')}</th>
+                          <th className="p-4 text-left">{language === 'en' ? 'Portfolio Share' : 'سهم از سبد'}</th>
+                          <th className="p-4 pl-6 text-center">{t('actions')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
@@ -820,7 +822,7 @@ export default function App() {
                             
                             <td className="p-4">
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                                {asset.type === 'GOLD' ? 'طلا و مسکوکات' : asset.type === 'CRYPTO' ? 'ارز دیجیتال' : 'ارز فیات'}
+                                {asset.type === 'GOLD' ? (language === 'en' ? 'Gold & Coins' : 'طلا و مسکوکات') : asset.type === 'CRYPTO' ? (language === 'en' ? 'Crypto' : 'ارز دیجیتال') : (language === 'en' ? 'Fiat' : 'ارز فیات')}
                               </span>
                             </td>
 
@@ -829,11 +831,11 @@ export default function App() {
                             </td>
 
                             <td className="p-4 text-left font-black text-slate-600 dark:text-slate-300" dir="ltr">
-                              {formatToman(asset.currentPriceToman)} ت
+                              {formatToman(asset.currentPriceToman, language)} {language === 'en' ? 'T' : 'ت'}
                             </td>
 
                             <td className="p-4 text-left font-black text-slate-900 dark:text-white text-sm" dir="ltr">
-                              {formatToman(asset.currentValueToman)} ت
+                              {formatToman(asset.currentValueToman, language)} {language === 'en' ? 'T' : 'ت'}
                             </td>
 
                             <td className="p-4 text-left font-black" dir="ltr">
@@ -842,7 +844,7 @@ export default function App() {
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
                                   : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                               }`}>
-                                {asset.pnlToman >= 0 ? '+' : ''}{formatPercent(asset.pnlPercent)}
+                                {asset.pnlToman >= 0 ? '+' : ''}{formatPercent(asset.pnlPercent, language)}
                               </span>
                             </td>
 
@@ -855,9 +857,9 @@ export default function App() {
                                 <button
                                   onClick={() => openNewTxWithAsset(asset.symbol as AssetSymbol)}
                                   className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-[11px] font-bold"
-                                  title="خرید مجدد این دارایی"
+                                  title={language === 'en' ? 'Buy more' : 'خرید مجدد این دارایی'}
                                 >
-                                  + خرید
+                                  + {t('buy')}
                                 </button>
                                 <button
                                   onClick={() => {
@@ -866,9 +868,9 @@ export default function App() {
                                     setTxFilters(f => ({ ...f, searchQuery: asset.symbol }));
                                   }}
                                   className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[11px] font-bold"
-                                  title="مشاهده تراکنش‌ها"
+                                  title={language === 'en' ? 'View transactions' : 'مشاهده تراکنش‌ها'}
                                 >
-                                  تاریخچه
+                                  {language === 'en' ? 'History' : 'تاریخچه'}
                                 </button>
                               </div>
                             </td>
@@ -911,10 +913,10 @@ export default function App() {
                 </div>
                 <div>
                   <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white">
-                    تاریخچه تراکنش‌ها
+                    {t('txHistory')}
                   </h2>
                   <p className="text-xs text-slate-400 font-bold mt-0.5">
-                    {transactions.length} تراکنش ثبت شده در پورتفوی
+                    {language === 'en' ? `${transactions.length} transactions recorded` : `${formatNumber(transactions.length, 0, language)} تراکنش ثبت شده در پورتفوی`}
                   </p>
                 </div>
               </div>
@@ -923,10 +925,10 @@ export default function App() {
                 <button
                   onClick={() => { haptic('light'); setIsExportImportOpen(true); }}
                   className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 text-xs font-black flex items-center gap-1.5 shadow-sm"
-                  title="خروجی و ورودی اکسل / بکاپ"
+                  title={language === 'en' ? 'Excel Export / Backup' : 'خروجی و ورودی اکسل / بکاپ'}
                 >
                   <Download size={16} />
-                  <span className="hidden sm:inline">خروجی اکسل</span>
+                  <span className="hidden sm:inline">{language === 'en' ? 'Excel Export' : 'خروجی اکسل'}</span>
                 </button>
 
                 <button
@@ -934,7 +936,7 @@ export default function App() {
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-600/25 active:scale-95 transition-all"
                 >
                   <Plus size={16} strokeWidth={3} />
-                  <span>ثبت تراکنش جدید</span>
+                  <span>{t('recordNewTx')}</span>
                 </button>
               </div>
             </div>
@@ -952,9 +954,9 @@ export default function App() {
             {transactions.length === 0 ? (
               <EmptyState
                 type="transactions"
-                title="تراکنشی ثبت نشده"
-                description="با ثبت اولین خرید خود، تاریخچه تراکنش‌ها را اینجا مشاهده کنید."
-                actionLabel="ثبت تراکنش جدید"
+                title={language === 'en' ? 'No transactions recorded' : 'تراکنشی ثبت نشده'}
+                description={language === 'en' ? 'Record your first purchase to view transaction history here.' : 'با ثبت اولین خرید خود، تاریخچه تراکنش‌ها را اینجا مشاهده کنید.'}
+                actionLabel={t('recordNewTx')}
                 onAction={() => openNewTxWithAsset()}
               />
             ) : (() => {
@@ -966,7 +968,7 @@ export default function App() {
 
               return filteredTxs.length === 0 ? (
                 <div className={`${cardSurface} text-center py-16 rounded-[32px]`}>
-                  <p className="text-slate-400 font-bold text-sm">تراکنشی با این مشخصات یافت نشد</p>
+                  <p className="text-slate-400 font-bold text-sm">{language === 'en' ? 'No transactions found matching your criteria' : 'تراکنشی با این مشخصات یافت نشد'}</p>
                 </div>
               ) : (
                 <>
@@ -976,20 +978,20 @@ export default function App() {
                       <table className="w-full text-right border-collapse">
                         <thead>
                           <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                            <th className="p-4 pr-6">تاریخ</th>
-                            <th className="p-4">دارایی / نماد</th>
-                            <th className="p-4 text-left">مقدار</th>
-                            <th className="p-4 text-left">قیمت واحد</th>
-                            <th className="p-4 text-left">هزینه کل</th>
-                            <th className="p-4">صرافی / ولت</th>
-                            <th className="p-4">برچسب‌ها</th>
-                            <th className="p-4">یادداشت</th>
-                            <th className="p-4 pl-6 text-center">عملیات</th>
+                            <th className="p-4 pr-6">{t('date')}</th>
+                            <th className="p-4">{t('assetSymbol')}</th>
+                            <th className="p-4 text-left">{t('quantity')}</th>
+                            <th className="p-4 text-left">{t('unitPrice')}</th>
+                            <th className="p-4 text-left">{language === 'en' ? 'Total Cost' : 'هزینه کل'}</th>
+                            <th className="p-4">{t('wallet')}</th>
+                            <th className="p-4">{t('tags')}</th>
+                            <th className="p-4">{t('note')}</th>
+                            <th className="p-4 pl-6 text-center">{t('actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
                           {filteredTxs.map((tx) => {
-                            const detail = getAssetDetail(tx.assetSymbol);
+                            const detail = getAssetDetail(tx.assetSymbol, language);
                             const totalCost = tx.buyCurrency === 'TOMAN' 
                               ? (tx.quantity * tx.buyPricePerUnit) + (tx.feesToman || 0)
                               : (tx.quantity * tx.buyPricePerUnit * (prices?.usdToToman || 0)) + (tx.feesToman || 0);
@@ -1000,7 +1002,7 @@ export default function App() {
                                 className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors group"
                               >
                                 <td className="p-4 pr-6 text-slate-600 dark:text-slate-300 font-bold" dir="ltr">
-                                  {new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}
+                                  {new Date(tx.buyDateTime).toLocaleDateString(language === 'en' ? 'en-US' : 'fa-IR')}
                                 </td>
 
                                 <td className="p-4">
@@ -1024,11 +1026,11 @@ export default function App() {
                                 </td>
 
                                 <td className="p-4 text-left font-bold text-slate-600 dark:text-slate-300" dir="ltr">
-                                  {formatNumber(tx.buyPricePerUnit)} {tx.buyCurrency === 'USD' ? '$' : 'ت'}
+                                  {formatNumber(tx.buyPricePerUnit, undefined, language)} {tx.buyCurrency === 'USD' ? '$' : (language === 'en' ? 'T' : 'ت')}
                                 </td>
 
                                 <td className="p-4 text-left font-black text-slate-900 dark:text-white" dir="ltr">
-                                  {formatToman(totalCost)} ت
+                                  {formatToman(totalCost, language)} {language === 'en' ? 'T' : 'ت'}
                                 </td>
 
                                 <td className="p-4">
@@ -1068,19 +1070,19 @@ export default function App() {
                                         setIsTxModalOpen(true);
                                       }}
                                       className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-                                      title="ویرایش تراکنش"
+                                      title={t('edit')}
                                     >
                                       <Edit2 size={14} />
                                     </button>
                                     <button
                                       onClick={() => {
                                         haptic('error');
-                                        if (window.confirm('آیا از حذف این تراکنش اطمینان دارید؟')) {
+                                        if (window.confirm(language === 'en' ? 'Are you sure you want to delete this transaction?' : 'آیا از حذف این تراکنش اطمینان دارید؟')) {
                                           handleDeleteTransaction(tx.id);
                                         }
                                       }}
                                       className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 transition-colors"
-                                      title="حذف تراکنش"
+                                      title={t('delete')}
                                     >
                                       <Trash2 size={14} />
                                     </button>
@@ -1110,10 +1112,10 @@ export default function App() {
                             </div>
                             <div>
                               <div className="font-black text-sm text-[color:var(--text-primary)]">
-                                {getAssetDetail(tx.assetSymbol).name}
+                                {getAssetDetail(tx.assetSymbol, language).name}
                               </div>
                               <div className="text-[10px] font-bold text-slate-400 mt-0.5" dir="ltr">
-                                {new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}
+                                {new Date(tx.buyDateTime).toLocaleDateString(language === 'en' ? 'en-US' : 'fa-IR')}
                               </div>
                             </div>
                           </div>

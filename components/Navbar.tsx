@@ -12,9 +12,11 @@ import {
   LayoutDashboard, 
   PieChart, 
   History,
-  TrendingUp
+  TrendingUp,
+  Languages
 } from 'lucide-react';
 import { useHaptics } from '../hooks/useHaptics';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface NavbarProps {
   user: { username: string; isAdmin: boolean; displayName?: string };
@@ -54,13 +56,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   holdingsCount,
   transactionsCount
 }) => {
+  const { t, language, toggleLanguage } = useTranslation();
   const { haptic } = useHaptics();
 
   const navTabs = [
-    { id: 'overview', label: 'نگاه کلی', icon: LayoutDashboard },
-    { id: 'market', label: 'تابلو بازار', icon: TrendingUp },
-    { id: 'holdings', label: 'دارایی‌ها', icon: PieChart, count: holdingsCount },
-    { id: 'transactions', label: 'تراکنش‌ها', icon: History, count: transactionsCount },
+    { id: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
+    { id: 'market', label: t('nav.market'), icon: TrendingUp },
+    { id: 'holdings', label: t('nav.holdings'), icon: PieChart, count: holdingsCount },
+    { id: 'transactions', label: t('nav.transactions'), icon: History, count: transactionsCount },
   ];
 
   return (
@@ -77,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="font-black text-sm sm:text-lg tracking-tight text-slate-800 dark:text-white truncate max-w-[110px] sm:max-w-[200px]">
-                  {displayName || 'سبد دارایی'}
+                  {displayName || (language === 'en' ? 'Portfolio' : 'سبد دارایی')}
                 </span>
                 <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
                   {user.username}
@@ -85,10 +88,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div className="hidden sm:flex items-center gap-1.5 mt-0.5">
                 <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold">
-                  مدیریت پورتفوی
+                  {language === 'en' ? 'Asset Tracker' : 'مدیریت پورتفوی'}
                 </span>
                 <span className="text-[8px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded flex items-center gap-0.5 border border-indigo-500/20">
-                  <Sparkles size={8} /> هوش مصنوعی
+                  <Sparkles size={8} /> {language === 'en' ? 'AI Powered' : 'هوش مصنوعی'}
                 </span>
               </div>
             </div>
@@ -131,6 +134,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Left Section: Action Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
+            {/* Language Switcher Button */}
+            <button
+              onClick={() => {
+                haptic('light');
+                toggleLanguage();
+              }}
+              className="px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all flex items-center gap-1.5 text-xs font-black"
+              title={language === 'fa' ? 'Switch to English' : 'تغییر به فارسی'}
+            >
+              <Languages size={15} className="text-blue-600 dark:text-blue-400" />
+              <span className="uppercase text-[11px] font-bold">{language === 'fa' ? 'EN' : 'فا'}</span>
+            </button>
+
             {/* Quick Search Button (Always visible) */}
             <button
               onClick={() => {
@@ -138,10 +154,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenCommandPalette();
               }}
               className="p-2 sm:px-3 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 transition-all flex items-center gap-2 text-xs font-bold"
-              title="جستجوی سریع و پالت دستورات (⌘K)"
+              title={t('nav.searchKbd') + ' (⌘K)'}
             >
               <Search size={16} className="text-blue-500" />
-              <span className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-500">جستجو و تبدیل...</span>
+              <span className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-500">{t('nav.searchKbd')}</span>
               <kbd className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500">⌘K</kbd>
             </button>
 
@@ -152,7 +168,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenGoldBubble();
               }}
               className="hidden md:flex p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all"
-              title="محاسبه‌گر حباب طلا و سکه"
+              title={t('nav.goldBubble')}
             >
               <Calculator size={18} />
             </button>
@@ -164,7 +180,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenExportImport();
               }}
               className="hidden md:flex p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all"
-              title="خروجی و ورودی اکسل / بکاپ JSON"
+              title={t('nav.exportImport')}
             >
               <Download size={18} />
             </button>
@@ -179,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className={`hidden md:flex p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all ${
                 isPriceUpdating ? 'opacity-70 cursor-not-allowed' : ''
               }`}
-              title="بروزرسانی زنده نرخ‌های ارز و طلا"
+              title={t('common.refresh')}
             >
               <RefreshCw size={18} className={isPriceUpdating ? "animate-spin text-blue-500" : ""} />
             </button>
@@ -191,10 +207,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenNewTx();
               }}
               className="flex items-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-md sm:shadow-lg shadow-blue-600/25 active:scale-95 transition-all shrink-0"
-              title="ثبت تراکنش جدید"
+              title={t('nav.newTx')}
             >
               <Plus size={16} strokeWidth={3} />
-              <span className="hidden sm:inline">ثبت تراکنش</span>
+              <span className="hidden sm:inline">{t('nav.newTx')}</span>
             </button>
 
             {/* User Profile & Drawer Trigger (Always visible) */}
@@ -204,7 +220,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenSettings();
               }}
               className="p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all shrink-0"
-              title="پروفایل و تنظیمات"
+              title={t('nav.settings')}
             >
               <UserCircle size={18} />
             </button>
@@ -217,7 +233,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onOpenAdmin();
                 }}
                 className="hidden md:flex p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 transition-all shrink-0"
-                title="پنل مدیریت ادمین"
+                title={t('nav.admin')}
               >
                 <Shield size={18} />
               </button>
@@ -230,7 +246,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onLogout();
               }}
               className="hidden md:flex p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-all shrink-0"
-              title="خروج از حساب"
+              title={t('nav.logout')}
             >
               <LogOut size={18} />
             </button>

@@ -172,16 +172,16 @@ const cryptoAssets = [
 ];
 
 const goldAssets = [
-  { symbol: 'GOLD18', name: 'طلای ۱۸ عیار' },
-  { symbol: '18AYAR', name: 'طلای ۱۸ عیار (آلان‌چند)' },
-  { symbol: 'ABSHODEH', name: 'آبشده (مثقال طلا)' },
-  { symbol: 'SEKKEH', name: 'سکه امامی (طرح جدید)' },
-  { symbol: 'BAHAR', name: 'سکه بهار آزادی' },
-  { symbol: 'NIM', name: 'نیم سکه' },
-  { symbol: 'ROB', name: 'ربع سکه' },
-  { symbol: 'SEK', name: 'سکه گرمی' },
-  { symbol: 'USD_XAU', name: 'انس طلا (دلار)' },
-  { symbol: 'XAG', name: 'انس نقره (دلار)' },
+  { symbol: 'GOLD18', name: 'طلای ۱۸ عیار', nameEn: '18K Gold (Gram)' },
+  { symbol: '18AYAR', name: 'طلای ۱۸ عیار (آلان‌چند)', nameEn: '18K Gold' },
+  { symbol: 'ABSHODEH', name: 'آبشده (مثقال طلا)', nameEn: 'Melted Gold (Meqal)' },
+  { symbol: 'SEKKEH', name: 'سکه امامی (طرح جدید)', nameEn: 'Emami Gold Coin' },
+  { symbol: 'BAHAR', name: 'سکه بهار آزادی', nameEn: 'Bahar Azadi Coin' },
+  { symbol: 'NIM', name: 'نیم سکه', nameEn: 'Half Gold Coin' },
+  { symbol: 'ROB', name: 'ربع سکه', nameEn: 'Quarter Gold Coin' },
+  { symbol: 'SEK', name: 'سکه گرمی', nameEn: 'Gram Gold Coin' },
+  { symbol: 'USD_XAU', name: 'انس طلا (دلار)', nameEn: 'World Gold Ounce' },
+  { symbol: 'XAG', name: 'انس نقره (دلار)', nameEn: 'World Silver Ounce' },
 ];
 
 export const allAssets = [
@@ -192,11 +192,16 @@ export const allAssets = [
 
 const baseAssets = allAssets;
 
-export const ASSET_DETAILS: Record<AssetSymbol, { name: string; type: AssetType }> = baseAssets.reduce((acc, asset) => {
-  acc[asset.symbol] = { name: asset.name, type: asset.type };
+export const ASSET_DETAILS: Record<AssetSymbol, { name: string; nameEn?: string; type: AssetType }> = baseAssets.reduce((acc, asset) => {
+  acc[asset.symbol] = { name: asset.name, nameEn: (asset as any).nameEn, type: asset.type };
   return acc;
-}, {} as Record<AssetSymbol, { name: string; type: AssetType }>);
+}, {} as Record<AssetSymbol, { name: string; nameEn?: string; type: AssetType }>);
 
-export const getAssetDetail = (symbol: AssetSymbol): { name: string; type: AssetType } => {
-  return ASSET_DETAILS[symbol] || { name: symbol, type: 'CRYPTO' };
+export const getAssetDetail = (symbol: AssetSymbol, lang: 'fa' | 'en' = 'fa'): { name: string; type: AssetType } => {
+  const detail = ASSET_DETAILS[symbol];
+  if (detail) {
+    const displayName = (lang === 'en' && detail.nameEn) ? detail.nameEn : detail.name;
+    return { name: displayName, type: detail.type };
+  }
+  return { name: symbol, type: 'CRYPTO' };
 };

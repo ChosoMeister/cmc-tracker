@@ -3,6 +3,7 @@ import { PortfolioSummary } from '../types';
 import { formatToman, formatPercent, formatNumber } from '../utils/formatting';
 import { Wallet, Clock, TrendingUp, TrendingDown, DollarSign, Coins, CheckCircle2 } from 'lucide-react';
 import { AnimatedToman, AnimatedPercent } from './AnimatedNumber';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface SummaryCardProps {
   summary: PortfolioSummary;
@@ -13,8 +14,11 @@ interface SummaryCardProps {
 }
 
 const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshing, lastUpdated, onRefresh, prices }) => {
+  const { t, language } = useTranslation();
   const isProfit = summary.totalPnlToman >= 0;
   const hasRealized = (summary.totalRealizedPnlToman || 0) !== 0;
+
+  const dateLocale = language === 'en' ? 'en-US' : 'fa-IR';
 
   return (
     <div className="relative overflow-hidden mb-6 rounded-[28px] sm:rounded-[36px] border border-slate-200/80 dark:border-slate-800/80 shadow-xl dark:shadow-2xl transition-all duration-300">
@@ -37,7 +41,7 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
             </div>
             <div>
               <span className="text-slate-400 dark:text-slate-500 text-xs font-black uppercase tracking-wider block">
-                ارزش خالص سبد دارایی‌ها
+                {t('summary.netWorth')}
               </span>
               <div className="flex items-center gap-2 mt-0.5" dir="ltr">
                 <span className={`inline-flex items-center gap-1 text-xs font-black px-2.5 py-0.5 rounded-lg ${
@@ -46,10 +50,10 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
                     : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
                 }`}>
                   {isProfit ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                  {formatPercent(summary.totalPnlPercent)}
+                  {formatPercent(summary.totalPnlPercent, language)}
                 </span>
                 <span className={`text-xs font-black ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {isProfit ? '+' : '-'}{formatToman(Math.abs(summary.totalPnlToman))} ت
+                  {isProfit ? '+' : '-'}{formatToman(Math.abs(summary.totalPnlToman), language)} {language === 'en' ? 'T' : 'ت'}
                 </span>
               </div>
             </div>
@@ -57,7 +61,7 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
 
           <div className="flex items-center gap-2 text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-100/80 dark:bg-slate-800/60 px-3.5 py-1.5 rounded-full" dir="ltr">
             <Clock size={13} />
-            <span>{new Date(lastUpdated).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })} • {new Date(lastUpdated).toLocaleDateString('fa-IR')}</span>
+            <span>{new Date(lastUpdated).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })} • {new Date(lastUpdated).toLocaleDateString(dateLocale)}</span>
           </div>
         </div>
 
@@ -66,7 +70,9 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           <div className="inline-block">
             <div className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white tracking-tighter drop-shadow-sm flex items-baseline justify-center sm:justify-start gap-2">
               <AnimatedToman value={summary.totalValueToman} showSuffix={false} />
-              <span className="text-xl sm:text-3xl text-slate-400 dark:text-slate-500 font-black">تومان</span>
+              <span className="text-xl sm:text-3xl text-slate-400 dark:text-slate-500 font-black">
+                {t('common.toman')}
+              </span>
             </div>
           </div>
         </div>
@@ -77,11 +83,11 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           {/* Card 1: Total Cost Basis */}
           <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">سرمایه‌گذاری اولیه</p>
+              <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">{t('summary.invested')}</p>
               <Coins size={16} className="text-slate-400" />
             </div>
             <p className="text-slate-800 dark:text-slate-100 font-black text-lg sm:text-xl">
-              {formatToman(summary.totalCostBasisToman)} <span className="text-xs text-slate-400">تومان</span>
+              {formatToman(summary.totalCostBasisToman, language)} <span className="text-xs text-slate-400">{t('common.toman')}</span>
             </p>
           </div>
 
@@ -89,11 +95,11 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           {hasRealized && (
             <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">سود باز (شناور)</p>
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">{t('summary.unrealizedPnl')}</p>
                 <TrendingUp size={16} className="text-blue-500" />
               </div>
               <p className={`font-black text-lg sm:text-xl ${summary.totalUnrealizedPnlToman >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {summary.totalUnrealizedPnlToman >= 0 ? '+' : ''}{formatToman(summary.totalUnrealizedPnlToman)} <span className="text-xs text-slate-400">ت</span>
+                {summary.totalUnrealizedPnlToman >= 0 ? '+' : ''}{formatToman(summary.totalUnrealizedPnlToman, language)} <span className="text-xs text-slate-400">{language === 'en' ? 'T' : 'ت'}</span>
               </p>
             </div>
           )}
@@ -102,11 +108,11 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           {hasRealized && (
             <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">سود محقق‌شده (سیو سود)</p>
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">{t('summary.realizedPnl')}</p>
                 <CheckCircle2 size={16} className="text-emerald-500" />
               </div>
               <p className={`font-black text-lg sm:text-xl ${summary.totalRealizedPnlToman >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {summary.totalRealizedPnlToman >= 0 ? '+' : ''}{formatToman(summary.totalRealizedPnlToman)} <span className="text-xs text-slate-400">ت</span>
+                {summary.totalRealizedPnlToman >= 0 ? '+' : ''}{formatToman(summary.totalRealizedPnlToman, language)} <span className="text-xs text-slate-400">{language === 'en' ? 'T' : 'ت'}</span>
               </p>
             </div>
           )}
@@ -114,7 +120,7 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           {/* Card 4: Live Dollar Rate */}
           <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">نرخ دلار آزاد</p>
+              <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">{t('summary.freeUsd')}</p>
               <div className="flex items-center gap-1.5">
                 {typeof prices?.changes24h?.USD === 'number' && (
                   <span
@@ -124,16 +130,16 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
                         ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                         : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
                     }`}
-                    title="تغییرات ۲۴ ساعته دلار"
+                    title={language === 'en' ? '24h USD Change' : 'تغییرات ۲۴ ساعته دلار'}
                   >
-                    {prices.changes24h.USD >= 0 ? '+' : ''}{formatPercent(prices.changes24h.USD)}
+                    {prices.changes24h.USD >= 0 ? '+' : ''}{formatPercent(prices.changes24h.USD, language)}
                   </span>
                 )}
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               </div>
             </div>
             <p className="text-emerald-600 dark:text-emerald-400 font-black text-lg sm:text-xl" dir="ltr">
-              {formatNumber(prices?.usdToToman || 0, 0)} <span className="text-xs text-slate-400">تومان</span>
+              {formatNumber(prices?.usdToToman || 0, 0, language)} <span className="text-xs text-slate-400">{t('common.toman')}</span>
             </p>
           </div>
 
@@ -141,7 +147,7 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           {!hasRealized && (
             <div className="bg-white/70 dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800/60">
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">طلای ۱۸ عیار (گرم)</p>
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold">{t('summary.gold18k')}</p>
                 <div className="flex items-center gap-1.5">
                   {typeof (prices?.changes24h?.GOLD18 ?? prices?.changes24h?.['IR_GOLD_18K']) === 'number' && (
                     <span
@@ -151,17 +157,17 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
                           ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                           : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
                       }`}
-                      title="تغییرات ۲۴ ساعته طلا"
+                      title={language === 'en' ? '24h Gold Change' : 'تغییرات ۲۴ ساعته طلا'}
                     >
                       {(prices.changes24h.GOLD18 ?? prices.changes24h['IR_GOLD_18K']) >= 0 ? '+' : ''}
-                      {formatPercent(prices.changes24h.GOLD18 ?? prices.changes24h['IR_GOLD_18K'])}
+                      {formatPercent(prices.changes24h.GOLD18 ?? prices.changes24h['IR_GOLD_18K'], language)}
                     </span>
                   )}
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                 </div>
               </div>
               <p className="text-amber-600 dark:text-amber-400 font-black text-lg sm:text-xl" dir="ltr">
-                {formatNumber(prices?.gold18ToToman || 0, 0)} <span className="text-xs text-slate-400">تومان</span>
+                {formatNumber(prices?.gold18ToToman || 0, 0, language)} <span className="text-xs text-slate-400">{t('common.toman')}</span>
               </p>
             </div>
           )}

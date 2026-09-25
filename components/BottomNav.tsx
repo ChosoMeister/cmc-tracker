@@ -1,21 +1,23 @@
 import React, { memo, useCallback } from 'react';
 import { LayoutDashboard, PieChart, History, TrendingUp } from 'lucide-react';
 import { useHaptics } from '../hooks/useHaptics';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface BottomNavProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
 }
 
-const tabs = [
-  { id: 'overview', label: 'نگاه کلی', icon: LayoutDashboard },
-  { id: 'market', label: 'بازار', icon: TrendingUp },
-  { id: 'holdings', label: 'دارایی‌ها', icon: PieChart },
-  { id: 'transactions', label: 'تراکنش‌ها', icon: History },
-];
-
 const BottomNavComponent: React.FC<BottomNavProps> = ({ currentTab, onTabChange }) => {
+  const { t } = useTranslation();
   const { haptic } = useHaptics();
+
+  const tabs = [
+    { id: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
+    { id: 'market', label: t('nav.market'), icon: TrendingUp },
+    { id: 'holdings', label: t('nav.holdings'), icon: PieChart },
+    { id: 'transactions', label: t('nav.transactions'), icon: History },
+  ];
 
   const handleTabChange = useCallback((tabId: string) => {
     haptic('selection');

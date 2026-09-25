@@ -1,8 +1,9 @@
 import React, { memo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { PortfolioSummary } from '../types';
-import { formatToman, formatPercent } from '../utils/formatting';
+import { PortfolioSummary, getAssetDetail } from '../types';
+import { formatToman, formatPercent, formatNumber } from '../utils/formatting';
 import { PieChart as PieChartIcon } from 'lucide-react';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface AllocationChartProps {
   summary: PortfolioSummary;
@@ -11,12 +12,13 @@ interface AllocationChartProps {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
 const AllocationChartComponent: React.FC<AllocationChartProps> = ({ summary }) => {
+  const { t, language } = useTranslation();
   if (!summary || summary.assets.length === 0) return null;
 
   const data = summary.assets
     .filter(a => a.allocationPercent > 1)
     .map(a => ({
-      name: a.name,
+      name: getAssetDetail(a.symbol, language).name,
       value: a.currentValueToman,
       percent: a.allocationPercent,
       symbol: a.symbol
@@ -27,7 +29,7 @@ const AllocationChartComponent: React.FC<AllocationChartProps> = ({ summary }) =
     const otherValue = smallAssets.reduce((sum, a) => sum + a.currentValueToman, 0);
     const otherPercent = smallAssets.reduce((sum, a) => sum + a.allocationPercent, 0);
     data.push({
-      name: 'سایر موارد',
+      name: language === 'en' ? 'Other Assets' : 'سایر موارد',
       value: otherValue,
       percent: otherPercent,
       symbol: 'OTH'
@@ -41,9 +43,9 @@ const AllocationChartComponent: React.FC<AllocationChartProps> = ({ summary }) =
         <div className="bg-slate-900 border border-white/10 p-3 rounded-2xl shadow-xl text-right z-50">
           <p className="font-black text-white text-xs mb-1">{d.name}</p>
           <div className="flex items-center gap-2 justify-end text-[10px]" dir="ltr">
-            <span className="text-emerald-400 font-black">{formatPercent(d.percent)}</span>
+            <span className="text-emerald-400 font-black">{formatPercent(d.percent, language)}</span>
             <span className="text-slate-500">|</span>
-            <span className="text-slate-300 font-bold">{formatToman(d.value)} ت</span>
+            <span className="text-slate-300 font-bold">{formatToman(d.value, language)} {language === 'en' ? 'T' : 'ت'}</span>
           </div>
         </div>
       );
@@ -59,11 +61,11 @@ const AllocationChartComponent: React.FC<AllocationChartProps> = ({ summary }) =
             <PieChartIcon size={18} />
           </div>
           <h3 className="text-sm sm:text-base font-black text-slate-800 dark:text-white">
-            توزیع و سهم دارایی‌ها
+            {t('assetAllocation')}
           </h3>
         </div>
         <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
-          {summary.assets.length} دارایی
+          {formatNumber(summary.assets.length, 0, language)} {language === 'en' ? 'Assets' : 'دارایی'}
         </span>
       </div>
 

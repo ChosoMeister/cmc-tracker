@@ -1,7 +1,8 @@
 import React from 'react';
 import { AssetSummary, AssetType } from '../types';
-import { formatPercent, formatToman } from '../utils/formatting';
+import { formatPercent, formatToman, formatNumber } from '../utils/formatting';
 import { Coins, CircleDollarSign, Bitcoin, Layers } from 'lucide-react';
+import { useTranslation } from '../contexts/LanguageContext';
 
 export type CategoryFilterType = 'ALL' | 'GOLD' | 'CRYPTO' | 'FIAT';
 
@@ -18,6 +19,8 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
   assets,
   totalPortfolioValue,
 }) => {
+  const { t, language } = useTranslation();
+
   // Aggregate stats per category
   const stats = React.useMemo(() => {
     const goldAssets = assets.filter(a => a.type === 'GOLD');
@@ -53,28 +56,28 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
   }> = [
     {
       key: 'ALL',
-      label: 'همه دارایی‌ها',
+      label: language === 'en' ? 'All Assets' : 'همه دارایی‌ها',
       icon: <Layers size={14} />,
       color: 'text-blue-500',
       activeClass: 'bg-blue-600 text-white shadow-md shadow-blue-600/20',
     },
     {
       key: 'GOLD',
-      label: 'طلا و مسکوکات',
+      label: language === 'en' ? 'Gold & Coins' : 'طلا و مسکوکات',
       icon: <Coins size={14} />,
       color: 'text-amber-500',
       activeClass: 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20',
     },
     {
       key: 'CRYPTO',
-      label: 'ارز دیجیتال',
+      label: language === 'en' ? 'Crypto' : 'ارز دیجیتال',
       icon: <Bitcoin size={14} />,
       color: 'text-indigo-500',
       activeClass: 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20',
     },
     {
       key: 'FIAT',
-      label: 'ارزهای فیات',
+      label: language === 'en' ? 'Fiat Currencies' : 'ارزهای فیات',
       icon: <CircleDollarSign size={14} />,
       color: 'text-emerald-500',
       activeClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20',
@@ -105,7 +108,7 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                 isActive ? 'bg-black/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
               }`}>
-                {count}
+                {formatNumber(count, 0, language)}
               </span>
             </button>
           );
@@ -116,16 +119,16 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
       {activeCategory !== 'ALL' && stats[activeCategory].count > 0 && (
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
           <div>
-            <span className="text-slate-400 font-bold block text-[10px]">مجموع ارزش این دسته</span>
-            <span className="font-black text-slate-800 dark:text-white text-sm">
-              {formatToman(stats[activeCategory].val)} <span className="text-[10px] text-slate-400">تومان</span>
+            <span className="text-slate-400 font-bold block text-[10px]">{language === 'en' ? 'Category Total Value' : 'مجموع ارزش این دسته'}</span>
+            <span className="font-black text-slate-800 dark:text-white text-sm" dir="ltr">
+              {formatToman(stats[activeCategory].val, language)} <span className="text-[10px] text-slate-400">{language === 'en' ? 'T' : 'تومان'}</span>
             </span>
           </div>
 
           <div className="text-left">
-            <span className="text-slate-400 font-bold block text-[10px]">سود / زیان دسته</span>
-            <span className={`font-black text-xs ${stats[activeCategory].pnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {formatPercent(stats[activeCategory].pnlPct)} ({stats[activeCategory].pnl >= 0 ? '+' : ''}{formatToman(stats[activeCategory].pnl)} ت)
+            <span className="text-slate-400 font-bold block text-[10px]">{language === 'en' ? 'Category PnL' : 'سود / زیان دسته'}</span>
+            <span className={`font-black text-xs ${stats[activeCategory].pnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} dir="ltr">
+              {formatPercent(stats[activeCategory].pnlPct, language)} ({stats[activeCategory].pnl >= 0 ? '+' : ''}{formatToman(stats[activeCategory].pnl, language)} {language === 'en' ? 'T' : 'ت'})
             </span>
           </div>
         </div>

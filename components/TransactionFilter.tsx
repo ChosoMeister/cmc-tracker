@@ -2,6 +2,7 @@
 import React, { useState, memo } from 'react';
 import { Filter, X, ChevronDown, Calendar } from 'lucide-react';
 import { AssetType } from '../types';
+import { useTranslation } from '../contexts/LanguageContext';
 
 export interface TransactionFilters {
     assetType: AssetType | 'ALL';
@@ -18,28 +19,29 @@ interface TransactionFilterProps {
     availableTags?: string[];
 }
 
-const assetTypeOptions: { value: AssetType | 'ALL'; label: string }[] = [
-    { value: 'ALL', label: 'همه' },
-    { value: 'CRYPTO', label: 'رمزارز' },
-    { value: 'FIAT', label: 'ارز' },
-    { value: 'GOLD', label: 'طلا' },
-];
-
-const dateRangeOptions: { value: TransactionFilters['dateRange']; label: string }[] = [
-    { value: 'all', label: 'همه' },
-    { value: 'week', label: 'هفته اخیر' },
-    { value: 'month', label: 'ماه اخیر' },
-    { value: 'quarter', label: '۳ ماه اخیر' },
-    { value: 'year', label: 'سال اخیر' },
-];
-
 const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
     filters,
     onFiltersChange,
     availableWallets = [],
     availableTags = [],
 }) => {
+    const { t, language } = useTranslation();
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const assetTypeOptions: { value: AssetType | 'ALL'; label: string }[] = [
+        { value: 'ALL', label: language === 'en' ? 'All' : 'همه' },
+        { value: 'CRYPTO', label: language === 'en' ? 'Crypto' : 'رمزارز' },
+        { value: 'FIAT', label: language === 'en' ? 'Currency' : 'ارز' },
+        { value: 'GOLD', label: language === 'en' ? 'Gold' : 'طلا' },
+    ];
+
+    const dateRangeOptions: { value: TransactionFilters['dateRange']; label: string }[] = [
+        { value: 'all', label: language === 'en' ? 'All' : 'همه' },
+        { value: 'week', label: language === 'en' ? 'Past Week' : 'هفته اخیر' },
+        { value: 'month', label: language === 'en' ? 'Past Month' : 'ماه اخیر' },
+        { value: 'quarter', label: language === 'en' ? 'Past 3 Months' : '۳ ماه اخیر' },
+        { value: 'year', label: language === 'en' ? 'Past Year' : 'سال اخیر' },
+    ];
 
     const hasActiveFilters =
         filters.assetType !== 'ALL' ||
@@ -63,7 +65,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
             <div className="flex gap-2">
                 <input
                     type="text"
-                    placeholder="جستجو در نماد، ولت، برچسب..."
+                    placeholder={language === 'en' ? 'Search symbol, wallet, tag...' : 'جستجو در نماد، ولت، برچسب...'}
                     value={filters.searchQuery}
                     onChange={(e) => onFiltersChange({ ...filters, searchQuery: e.target.value })}
                     className="flex-1 bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
@@ -85,7 +87,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                     {/* Asset Type Filter */}
                     <div>
                         <label className="text-[10px] font-black text-[color:var(--text-muted)] uppercase tracking-wider mb-2 block">
-                            نوع دارایی
+                            {language === 'en' ? 'Asset Type' : 'نوع دارایی'}
                         </label>
                         <div className="flex flex-wrap gap-2">
                             {assetTypeOptions.map((option) => (
@@ -107,7 +109,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                     <div>
                         <label className="text-[10px] font-black text-[color:var(--text-muted)] uppercase tracking-wider mb-2 block flex items-center gap-1">
                             <Calendar size={12} />
-                            بازه زمانی
+                            {language === 'en' ? 'Date Range' : 'بازه زمانی'}
                         </label>
                         <div className="flex flex-wrap gap-2">
                             {dateRangeOptions.map((option) => (
@@ -129,7 +131,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                     {availableWallets.length > 0 && (
                         <div>
                             <label className="text-[10px] font-black text-[color:var(--text-muted)] uppercase tracking-wider mb-2 block">
-                                محل نگهداری / ولت
+                                {language === 'en' ? 'Wallet / Location' : 'محل نگهداری / ولت'}
                             </label>
                             <div className="flex flex-wrap gap-2">
                                 <button
@@ -139,7 +141,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                                             : 'bg-[color:var(--card-bg)] text-[color:var(--text-muted)] border border-[color:var(--border-color)]'
                                         }`}
                                 >
-                                    همه
+                                    {language === 'en' ? 'All' : 'همه'}
                                 </button>
                                 {availableWallets.map((w) => (
                                     <button
@@ -161,7 +163,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                     {availableTags.length > 0 && (
                         <div>
                             <label className="text-[10px] font-black text-[color:var(--text-muted)] uppercase tracking-wider mb-2 block">
-                                برچسب‌ها
+                                {language === 'en' ? 'Tags' : 'برچسب‌ها'}
                             </label>
                             <div className="flex flex-wrap gap-2">
                                 <button
@@ -171,7 +173,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                                             : 'bg-[color:var(--card-bg)] text-[color:var(--text-muted)] border border-[color:var(--border-color)]'
                                         }`}
                                 >
-                                    همه
+                                    {language === 'en' ? 'All' : 'همه'}
                                 </button>
                                 {availableTags.map((t) => (
                                     <button
@@ -196,7 +198,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                             className="w-full py-2.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2"
                         >
                             <X size={14} />
-                            پاک کردن فیلترها
+                            {language === 'en' ? 'Clear Filters' : 'پاک کردن فیلترها'}
                         </button>
                     )}
                 </div>
@@ -223,7 +225,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                     )}
                     {filters.wallet && (
                         <span className="text-[10px] font-bold px-2.5 py-1.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center gap-1">
-                            ولت: {filters.wallet}
+                            {language === 'en' ? 'Wallet:' : 'ولت:'} {filters.wallet}
                             <button onClick={() => onFiltersChange({ ...filters, wallet: undefined })}>
                                 <X size={12} />
                             </button>
@@ -231,7 +233,7 @@ const TransactionFilterComponent: React.FC<TransactionFilterProps> = ({
                     )}
                     {filters.tag && (
                         <span className="text-[10px] font-bold px-2.5 py-1.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center gap-1">
-                            تگ: {filters.tag}
+                            {language === 'en' ? 'Tag:' : 'تگ:'} {filters.tag}
                             <button onClick={() => onFiltersChange({ ...filters, tag: undefined })}>
                                 <X size={12} />
                             </button>

@@ -23,10 +23,20 @@ body.dark {
 }
 
 body {
-  font-family: 'Vazirmatn', sans-serif;
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--app-bg);
   color: var(--text-primary);
   overscroll-behavior-y: none;
+}
+
+html.font-sans-en body,
+html[lang="en"] body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+html.font-sans-fa body,
+html[lang="fa"] body {
+  font-family: 'Vazirmatn', sans-serif;
 }
 
 ::-webkit-scrollbar {

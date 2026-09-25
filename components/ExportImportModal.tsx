@@ -8,6 +8,7 @@ import {
   parseTransactionsCSV,
 } from '../utils/exportImport';
 import { useToast } from './Toast';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface ExportImportModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
   prices,
   onImportSuccess,
 }) => {
+  const { t, language } = useTranslation();
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
   const [importPreview, setImportPreview] = useState<Transaction[] | null>(null);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
@@ -39,22 +41,22 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
   const handleExportCSV = () => {
     try {
       if (transactions.length === 0) {
-        addToast('تراکنشی برای خروجی اکسل وجود ندارد', 'info');
+        addToast(language === 'en' ? 'No transactions to export' : 'تراکنشی برای خروجی اکسل وجود ندارد', 'info');
         return;
       }
       exportTransactionsToCSV(transactions);
-      addToast('فایل اکسل (CSV) با موفقیت دانلود شد', 'success');
+      addToast(language === 'en' ? 'Excel (CSV) file downloaded successfully' : 'فایل اکسل (CSV) با موفقیت دانلود شد', 'success');
     } catch (error: any) {
-      addToast(`خطا در دانلود فایل: ${error.message}`, 'error');
+      addToast(`${language === 'en' ? 'Error downloading file: ' : 'خطا در دانلود فایل: '}${error.message}`, 'error');
     }
   };
 
   const handleExportJSON = () => {
     try {
       exportBackupJSON(username, transactions, prices);
-      addToast('فایل پشتیبان JSON با موفقیت ایجاد شد', 'success');
+      addToast(language === 'en' ? 'JSON backup created successfully' : 'فایل پشتیبان JSON با موفقیت ایجاد شد', 'success');
     } catch (error: any) {
-      addToast(`خطا در ایجاد پشتیبان: ${error.message}`, 'error');
+      addToast(`${language === 'en' ? 'Error creating backup: ' : 'خطا در ایجاد پشتیبان: '}${error.message}`, 'error');
     }
   };
 
@@ -76,13 +78,13 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
         } else if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
           parsed = parseTransactionsCSV(text);
         } else {
-          throw new Error('فرمت فایل پشتیبانی نمی‌شود. لطفاً فایل CSV یا JSON انتخاب کنید.');
+          throw new Error(language === 'en' ? 'Unsupported file format. Please select CSV or JSON.' : 'فرمت فایل پشتیبانی نمی‌شود. لطفاً فایل CSV یا JSON انتخاب کنید.');
         }
 
         setImportPreview(parsed);
-        addToast(`${parsed.length} تراکنش برای واردسازی آماده است`, 'info');
+        addToast(language === 'en' ? `${parsed.length} transactions ready for import` : `${parsed.length} تراکنش برای واردسازی آماده است`, 'info');
       } catch (err: any) {
-        addToast(err.message || 'خطا در بارگذاری فایل', 'error');
+        addToast(err.message || (language === 'en' ? 'Error reading file' : 'خطا در بارگذاری فایل'), 'error');
         setImportPreview(null);
       }
     };
@@ -97,14 +99,14 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
       await onImportSuccess(importPreview, importMode);
       addToast(
         importMode === 'replace'
-          ? 'پورتفوی با داده‌های جدید جایگزین شد'
-          : 'تراکنش‌های جدید با موفقیت به پورتفوی اضافه شدند',
+          ? (language === 'en' ? 'Portfolio replaced with new data' : 'پورتفوی با داده‌های جدید جایگزین شد')
+          : (language === 'en' ? 'New transactions added successfully' : 'تراکنش‌های جدید با موفقیت به پورتفوی اضافه شدند'),
         'success'
       );
       setImportPreview(null);
       onClose();
     } catch (err: any) {
-      addToast(`خطا در ثبت اطلاعات: ${err.message}`, 'error');
+      addToast(`${language === 'en' ? 'Error importing data: ' : 'خطا در ثبت اطلاعات: '}${err.message}`, 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -121,16 +123,17 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
             </div>
             <div>
               <h2 className="font-black text-lg text-[color:var(--text-primary)]">
-                پشتیبان‌گیری و خروجی / ورودی داده‌ها
+                {t('exportImport.title')}
               </h2>
               <p className="text-[11px] text-[color:var(--text-muted)] font-bold">
-                فرمت اکسل (Excel/CSV) و پشتیبان کامل JSON
+                {t('exportImport.subtitle')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2.5 rounded-2xl bg-[color:var(--card-bg)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] border border-[color:var(--border-color)] transition-all"
+            aria-label={t('common.close')}
           >
             <X size={18} />
           </button>
@@ -147,7 +150,7 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
             }`}
           >
             <Download size={14} />
-            دریافت خروجی و پشتیبان (Export)
+            {t('exportImport.exportTab')}
           </button>
           <button
             onClick={() => setActiveTab('import')}
@@ -158,7 +161,7 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
             }`}
           >
             <Upload size={14} />
-            وارد کردن فایل (Import)
+            {t('exportImport.importTab')}
           </button>
         </div>
 
@@ -172,9 +175,9 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                     <FileSpreadsheet size={22} />
                   </div>
                   <div>
-                    <h4 className="font-black text-sm text-[color:var(--text-primary)]">خروجی فایل اکسل (CSV)</h4>
+                    <h4 className="font-black text-sm text-[color:var(--text-primary)]">{t('exportImport.excelCsv')}</h4>
                     <p className="text-[11px] text-[color:var(--text-muted)] font-bold">
-                      شامل تاریخچه کامل تراکنش‌ها و تاریخ شمسی
+                      {language === 'en' ? 'Includes full transaction history and dates' : 'شامل تاریخچه کامل تراکنش‌ها و تاریخ شمسی'}
                     </p>
                   </div>
                 </div>
@@ -183,7 +186,7 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-emerald-600/20 active:scale-95 flex items-center gap-1.5"
                 >
                   <Download size={14} />
-                  دانلود CSV
+                  {t('exportImport.downloadCsv')}
                 </button>
               </div>
 
@@ -193,9 +196,9 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                     <FileJson size={22} />
                   </div>
                   <div>
-                    <h4 className="font-black text-sm text-[color:var(--text-primary)]">پشتیبان کامل JSON</h4>
+                    <h4 className="font-black text-sm text-[color:var(--text-primary)]">{t('exportImport.fullJson')}</h4>
                     <p className="text-[11px] text-[color:var(--text-muted)] font-bold">
-                      برای انتقال مستقیم به دستگاه یا سرور دیگر
+                      {language === 'en' ? 'Direct backup for transfer between devices/servers' : 'برای انتقال مستقیم به دستگاه یا سرور دیگر'}
                     </p>
                   </div>
                 </div>
@@ -204,12 +207,12 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-indigo-600/20 active:scale-95 flex items-center gap-1.5"
                 >
                   <Download size={14} />
-                  دانلود JSON
+                  {t('exportImport.downloadJson')}
                 </button>
               </div>
 
               <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl text-[11px] text-blue-600 dark:text-blue-400 font-bold">
-                تعداد کل تراکنش‌های آماده خروجی: <span className="font-black font-mono">{transactions.length}</span> مورد
+                {language === 'en' ? 'Total transactions ready to export: ' : 'تعداد کل تراکنش‌های آماده خروجی: '}<span className="font-black font-mono">{transactions.length}</span> {language === 'en' ? 'items' : 'مورد'}
               </div>
             </div>
           ) : (
@@ -231,10 +234,10 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                   </div>
                   <div className="text-center">
                     <div className="font-black text-sm text-[color:var(--text-primary)]">
-                      کلیک کنید یا فایل را اینجا بکشید
+                      {language === 'en' ? 'Click or drop file here' : 'کلیک کنید یا فایل را اینجا بکشید'}
                     </div>
                     <div className="text-[11px] text-[color:var(--text-muted)] mt-1 font-bold">
-                      پشتیبانی از فایل‌های <span className="font-mono">.csv</span> و <span className="font-mono">.json</span>
+                      {language === 'en' ? 'Supports .csv and .json backup files' : <>پشتیبانی از فایل‌های <span className="font-mono">.csv</span> و <span className="font-mono">.json</span></>}
                     </div>
                   </div>
                 </div>
@@ -249,13 +252,13 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                       onClick={() => { setImportPreview(null); setFileName(''); }}
                       className="text-[11px] font-bold text-rose-500 hover:underline"
                     >
-                      تغییر فایل
+                      {language === 'en' ? 'Change File' : 'تغییر فایل'}
                     </button>
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-[color:var(--text-muted)] block">
-                      نحوه واردسازی داده‌ها
+                      {language === 'en' ? 'Import Mode' : 'نحوه واردسازی داده‌ها'}
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -267,8 +270,8 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                             : 'bg-[color:var(--card-bg)] border-[color:var(--border-color)] text-[color:var(--text-muted)]'
                         }`}
                       >
-                        <div className="font-black">ادغام با داده‌های فعلی</div>
-                        <div className="text-[10px] opacity-75 mt-0.5">افزودن به تراکنش‌های موجود</div>
+                        <div className="font-black">{t('exportImport.mergeMode')}</div>
+                        <div className="text-[10px] opacity-75 mt-0.5">{language === 'en' ? 'Add to existing items' : 'افزودن به تراکنش‌های موجود'}</div>
                       </button>
                       <button
                         type="button"
@@ -279,16 +282,16 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                             : 'bg-[color:var(--card-bg)] border-[color:var(--border-color)] text-[color:var(--text-muted)]'
                         }`}
                       >
-                        <div className="font-black">جایگزینی کامل</div>
-                        <div className="text-[10px] opacity-75 mt-0.5">حذف داده‌های قبلی و ثبت جدید</div>
+                        <div className="font-black">{t('exportImport.replaceMode')}</div>
+                        <div className="text-[10px] opacity-75 mt-0.5">{language === 'en' ? 'Wipe old & set new' : 'حذف داده‌های قبلی و ثبت جدید'}</div>
                       </button>
                     </div>
                   </div>
 
                   {/* Summary preview */}
                   <div className="p-3 bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-xl text-xs flex justify-between items-center font-bold">
-                    <span>تعداد تراکنش‌های شناسایی‌شده:</span>
-                    <span className="font-black font-mono text-blue-600">{importPreview.length} مورد</span>
+                    <span>{language === 'en' ? 'Identified Transactions:' : 'تعداد تراکنش‌های شناسایی‌شده:'}</span>
+                    <span className="font-black font-mono text-blue-600">{importPreview.length} {language === 'en' ? 'items' : 'مورد'}</span>
                   </div>
 
                   <button
@@ -301,7 +304,7 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
                     ) : (
                       <CheckCircle2 size={16} />
                     )}
-                    <span>تأیید و اعمال در پورتفوی</span>
+                    <span>{t('exportImport.confirmImport')}</span>
                   </button>
                 </div>
               )}
@@ -315,7 +318,7 @@ export const ExportImportModal: React.FC<ExportImportModalProps> = ({
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-[color:var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] font-bold text-xs hover:opacity-80 transition-all"
           >
-            بستن
+            {t('common.close')}
           </button>
         </footer>
       </div>

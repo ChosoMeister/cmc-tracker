@@ -12,9 +12,10 @@ import {
   Calculator,
   X
 } from 'lucide-react';
-import { PriceData, AssetSymbol, AssetType, allAssets } from '../types';
+import { PriceData, AssetSymbol, AssetType, allAssets, getAssetDetail } from '../types';
 import { formatToman, formatPercent, getAssetIconUrl, getAssetFallbackIcon } from '../utils/formatting';
 import { useHaptics } from '../hooks/useHaptics';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface MarketBoardProps {
   prices: PriceData | null;
@@ -43,6 +44,7 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
   onOpenNewTxWithAsset,
   onOpenGoldBubble,
 }) => {
+  const { t, language } = useTranslation();
   const { haptic } = useHaptics();
   const [category, setCategory] = useState<MarketCategory>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,7 +92,7 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
       if (priceToman > 0) {
         items.push({
           symbol: asset.symbol,
-          name: asset.name,
+          name: getAssetDetail(asset.symbol, language).name,
           type: asset.type,
           priceToman,
           change24h,
@@ -100,7 +102,7 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
     });
 
     return items;
-  }, [prices]);
+  }, [prices, language]);
 
   // Filter and Sort Items
   const filteredAndSortedItems = useMemo(() => {
@@ -131,7 +133,6 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
       case 'PRICE_ASC':
         return sorted.sort((a, b) => a.priceToman - b.priceToman);
       default:
-        // Default priority: Keep order from allAssets
         return sorted;
     }
   }, [marketItems, category, searchQuery, sortBy]);
@@ -153,11 +154,12 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
 
   const lastUpdatedFormatted = useMemo(() => {
     if (!prices?.fetchedAt) return '';
-    return new Date(prices.fetchedAt).toLocaleTimeString('fa-IR', {
+    const dateLocale = language === 'en' ? 'en-US' : 'fa-IR';
+    return new Date(prices.fetchedAt).toLocaleTimeString(dateLocale, {
       hour: '2-digit',
       minute: '2-digit',
     });
-  }, [prices?.fetchedAt]);
+  }, [prices?.fetchedAt, language]);
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-300">
@@ -171,10 +173,10 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
             </div>
             <div>
               <h1 className="font-black text-lg sm:text-2xl text-slate-900 dark:text-white">
-                تابلو زنده نرخ‌های بازار
+                {t('market.title')}
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5">
-                بروزرسانی مستقیم از وب‌سرویس جامع طلا، ارز و کریپتو (BrsApi)
+                {t('market.subtitle')}
               </p>
             </div>
           </div>
@@ -182,8 +184,8 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
           {lastUpdatedFormatted && (
-            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-full" dir="rtl">
-              بروزرسانی: {lastUpdatedFormatted}
+            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-full" dir="ltr">
+              {t('common.updated')}: {lastUpdatedFormatted}
             </span>
           )}
 
@@ -196,7 +198,7 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
             className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
           >
             <RefreshCw size={14} className={isPriceUpdating ? 'animate-spin' : ''} />
-            <span>{isPriceUpdating ? 'در حال دریافت...' : 'بروزرسانی نرخ‌ها'}</span>
+            <span>{isPriceUpdating ? t('common.loading') : t('market.refreshPrices')}</span>
           </button>
         </div>
       </div>
@@ -207,10 +209,10 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-x-auto scrollbar-none">
           {[
-            { id: 'ALL', label: 'همه نمادها', icon: null },
-            { id: 'GOLD', label: 'طلا و مسکوکات', icon: Coins },
-            { id: 'FIAT', label: 'ارزهای فیات', icon: DollarSign },
-            { id: 'CRYPTO', label: 'رمزارزها', icon: Zap },
+            { id: 'ALL', label: t('market.allSymbols'), icon: null },
+            { id: 'GOLD', label: t('market.goldAndCoins'), icon: Coins },
+            { id: 'FIAT', label: t('market.fiatCurrencies'), icon: DollarSign },
+            { id: 'CRYPTO', label: t('market.cryptocurrencies'), icon: Zap },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = category === tab.id;
@@ -239,18 +241,18 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
         <div className="flex items-center gap-2">
           {/* Search Box */}
           <div className="relative flex-1 md:w-64">
-            <Search size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className={`absolute ${language === 'en' ? 'left-3' : 'right-3.5'} top-1/2 -translate-y-1/2 text-slate-400`} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجوی نماد یا نام..."
-              className="w-full pl-8 pr-10 py-2 text-xs font-bold rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              placeholder={t('market.searchPlaceholder')}
+              className={`w-full ${language === 'en' ? 'pl-9 pr-8' : 'pl-8 pr-10'} py-2 text-xs font-bold rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all`}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                className={`absolute ${language === 'en' ? 'right-2.5' : 'left-2.5'} top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600`}
               >
                 <X size={13} />
               </button>
@@ -266,11 +268,11 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
             }}
             className="px-3 py-2 text-xs font-bold rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
-            <option value="DEFAULT">پیش‌فرض بازار</option>
-            <option value="GAINERS">بیشترین رشد ۲۴س</option>
-            <option value="LOSERS">بیشترین افت ۲۴س</option>
-            <option value="PRICE_DESC">بالاترین قیمت</option>
-            <option value="PRICE_ASC">پایین‌ترین قیمت</option>
+            <option value="DEFAULT">{t('market.sortDefault')}</option>
+            <option value="GAINERS">{t('market.sortGainers')}</option>
+            <option value="LOSERS">{t('market.sortLosers')}</option>
+            <option value="PRICE_DESC">{t('market.sortPriceDesc')}</option>
+            <option value="PRICE_ASC">{t('market.sortPriceAsc')}</option>
           </select>
         </div>
 
@@ -279,7 +281,7 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
       {/* Grid of Tiles (Bento Grid) */}
       {filteredAndSortedItems.length === 0 ? (
         <div className="text-center py-16 bg-[var(--card-bg)] border border-slate-200/80 dark:border-slate-800/80 rounded-[32px] p-8">
-          <p className="text-sm font-bold text-slate-400">نمادی منطبق با جستجوی شما یافت نشد.</p>
+          <p className="text-sm font-bold text-slate-400">{t('market.noResults')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4.5">
@@ -327,22 +329,22 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20'
                             : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-rose-500/20'
                         }`}
-                        title="تغییرات ۲۴ ساعته"
+                        title={language === 'en' ? '24h Change' : 'تغییرات ۲۴ ساعته'}
                       >
                         {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                        <span>{isPositive ? '+' : ''}{formatPercent(item.change24h!)}</span>
+                        <span>{isPositive ? '+' : ''}{formatPercent(item.change24h!, language)}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Middle: Big Price Display */}
                   <div className="my-3">
-                    <span className="text-[10px] font-bold text-slate-400 block mb-0.5">قیمت لحظه‌ای</span>
+                    <span className="text-[10px] font-bold text-slate-400 block mb-0.5">{t('market.livePrice')}</span>
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight" dir="ltr">
-                        {formatToman(item.priceToman)}
+                        {formatToman(item.priceToman, language)}
                       </span>
-                      <span className="text-xs font-bold text-slate-400">تومان</span>
+                      <span className="text-xs font-bold text-slate-400">{t('common.toman')}</span>
                     </div>
                   </div>
                 </div>
@@ -357,10 +359,10 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
                         onOpenGoldBubble();
                       }}
                       className="px-2.5 py-1.5 rounded-xl text-[11px] font-black text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-1 transition-colors"
-                      title="محاسبه حباب طلا و سکه"
+                      title={t('market.bubbleCalc')}
                     >
                       <Calculator size={13} />
-                      <span>حباب</span>
+                      <span>{t('market.bubble')}</span>
                     </button>
                   )}
 
@@ -370,11 +372,11 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
                       haptic('light');
                       onOpenNewTxWithAsset(item.symbol);
                     }}
-                    className="mr-auto px-3 py-1.5 rounded-xl text-[11px] font-black bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center gap-1 transition-colors"
-                    title="ثبت خرید یا فروش این دارایی در پورتفوی"
+                    className={`${language === 'en' ? 'ml-auto' : 'mr-auto'} px-3 py-1.5 rounded-xl text-[11px] font-black bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center gap-1 transition-colors`}
+                    title={t('market.addToPortfolio')}
                   >
                     <Plus size={13} />
-                    <span>افزودن به سبد</span>
+                    <span>{t('market.addToPortfolio')}</span>
                   </button>
                 </div>
 

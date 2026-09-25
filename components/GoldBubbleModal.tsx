@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { X, Sparkles, AlertCircle, Calculator, RefreshCw, ArrowRightLeft } from 'lucide-react';
-import { PriceData } from '../types';
+import { PriceData, getAssetDetail } from '../types';
 import { calculateAllBubbles } from '../utils/goldCalculator';
 import { formatNumber, formatPercent, formatToman } from '../utils/formatting';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface GoldBubbleModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
   prices,
   onRefreshPrices,
 }) => {
+  const { t, language } = useTranslation();
   const [activeTab, setActiveTab] = useState<'live' | 'simulator'>('live');
 
   // Simulator state
@@ -59,10 +61,10 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
             </div>
             <div>
               <h2 className="font-black text-base sm:text-lg text-slate-800 dark:text-white">
-                تحلیل و محاسبه‌گر حباب طلا و سکه
+                {t('bubble.title')}
               </h2>
               <p className="text-[11px] text-slate-400 font-bold mt-0.5">
-                بر اساس فرمول استاندارد ضرب مسکوکات و انس جهانی
+                {t('bubble.subtitle')}
               </p>
             </div>
           </div>
@@ -78,12 +80,12 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
         <div className="px-5 sm:px-6 py-3 bg-amber-500/5 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-4">
             <div>
-              <span className="text-slate-400 font-bold">نرخ دلار مبنا: </span>
-              <span className="font-black text-slate-800 dark:text-slate-200">{formatNumber(currentUsdRate)} تومان</span>
+              <span className="text-slate-400 font-bold">{t('bubble.baseUsd')}: </span>
+              <span className="font-black text-slate-800 dark:text-slate-200">{formatNumber(currentUsdRate, 0, language)} {t('common.toman')}</span>
             </div>
             <div>
-              <span className="text-slate-400 font-bold">انس طلای جهانی: </span>
-              <span className="font-black text-slate-800 dark:text-slate-200">{formatNumber(estimatedOunceUsd)} دلار</span>
+              <span className="text-slate-400 font-bold">{t('bubble.worldOunce')}: </span>
+              <span className="font-black text-slate-800 dark:text-slate-200">{formatNumber(estimatedOunceUsd, 0, language)} {language === 'en' ? 'USD' : 'دلار'}</span>
             </div>
           </div>
           {onRefreshPrices && (
@@ -92,7 +94,7 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
               className="flex items-center gap-1 text-[11px] font-black text-amber-600 dark:text-amber-400 hover:underline"
             >
               <RefreshCw size={12} />
-              <span>بروزرسانی نرخ‌ها</span>
+              <span>{t('market.refreshPrices')}</span>
             </button>
           )}
         </div>
@@ -107,7 +109,7 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
                 : 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
             }`}
           >
-            حباب لحظه‌ای بازار
+            {t('bubble.liveMarketBubble')}
           </button>
           <button
             onClick={() => setActiveTab('simulator')}
@@ -118,7 +120,7 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
             }`}
           >
             <Calculator size={14} />
-            شبیه‌ساز سناریوی قیمت (دلار و انس)
+            {t('bubble.scenarioSimulator')}
           </button>
         </div>
 
@@ -128,12 +130,12 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
               <div className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                 <ArrowRightLeft size={14} className="text-amber-500" />
-                <span>اگر دلار و انس به مقادیر زیر برسند، قیمت و حباب طلا و سکه چقدر خواهد شد؟</span>
+                <span>{language === 'en' ? 'If Dollar and Gold Ounce reach these levels, what will prices and bubbles be?' : 'اگر دلار و انس به مقادیر زیر برسند، قیمت و حباب طلا و سکه چقدر خواهد شد؟'}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-black text-slate-400 block mb-1">
-                    قیمت پیش‌بینی دلار (تومان)
+                    {language === 'en' ? 'Target Dollar Rate (Toman)' : 'قیمت پیش‌بینی دلار (تومان)'}
                   </label>
                   <input
                     type="number"
@@ -145,7 +147,7 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-slate-400 block mb-1">
-                    قیمت پیش‌بینی انس طلا (دلار)
+                    {language === 'en' ? 'Target Gold Ounce (USD)' : 'قیمت پیش‌بینی انس طلا (دلار)'}
                   </label>
                   <input
                     type="number"
@@ -171,7 +173,8 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
                 : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
 
-              const statusText = isHigh ? 'حباب بالا' : isMed ? 'حباب متوسط' : 'حباب منطقی';
+              const statusText = isHigh ? t('bubble.highBubble') : isMed ? t('bubble.mediumBubble') : t('bubble.fairBubble');
+              const itemName = getAssetDetail(item.symbol, language).name || item.name;
 
               return (
                 <div
@@ -180,44 +183,44 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-sm text-slate-800 dark:text-white">{item.name}</span>
+                      <span className="font-black text-sm text-slate-800 dark:text-white">{itemName}</span>
                       <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${badgeColor}`}>
                         {statusText}
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-400 font-bold flex items-center gap-2">
-                      <span>وزن: {item.weightGrams} گرم</span>
+                      <span>{t('bubble.weight')}: {formatNumber(item.weightGrams, 3, language)} {language === 'en' ? 'g' : 'گرم'}</span>
                       <span>•</span>
-                      <span>عیار: {item.carat}</span>
+                      <span>{t('bubble.carat')}: {formatNumber(item.carat, 0, language)}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                     <div className="text-right sm:text-left">
-                      <div className="text-[10px] text-slate-400 font-bold">ارزش ذاتی</div>
+                      <div className="text-[10px] text-slate-400 font-bold">{t('bubble.intrinsicValue')}</div>
                       <div className="text-xs font-black text-slate-700 dark:text-slate-300">
-                        {formatToman(item.intrinsicValueToman)} <span className="text-[10px] opacity-70">ت</span>
+                        {formatToman(item.intrinsicValueToman, language)} <span className="text-[10px] opacity-70">{language === 'en' ? 'T' : 'ت'}</span>
                       </div>
                     </div>
 
                     <div className="text-right sm:text-left">
-                      <div className="text-[10px] text-slate-400 font-bold">قیمت بازار</div>
+                      <div className="text-[10px] text-slate-400 font-bold">{t('bubble.marketPrice')}</div>
                       <div className="text-xs font-black text-amber-600 dark:text-amber-400">
-                        {formatToman(item.marketPriceToman)} <span className="text-[10px] opacity-70">ت</span>
+                        {formatToman(item.marketPriceToman, language)} <span className="text-[10px] opacity-70">{language === 'en' ? 'T' : 'ت'}</span>
                       </div>
                     </div>
 
                     <div className="text-left min-w-[75px]">
-                      <div className="text-[10px] text-slate-400 font-bold">حباب</div>
+                      <div className="text-[10px] text-slate-400 font-bold">{t('market.bubble')}</div>
                       <div
                         className={`text-xs font-black ${
                           item.bubblePercent > 0 ? 'text-rose-500' : 'text-emerald-500'
                         }`}
                       >
-                        {formatPercent(item.bubblePercent)}
+                        {formatPercent(item.bubblePercent, language)}
                       </div>
                       <div className="text-[10px] text-slate-400 font-bold">
-                        {formatToman(Math.abs(item.bubbleToman))} ت
+                        {formatToman(Math.abs(item.bubbleToman), language)} {language === 'en' ? 'T' : 'ت'}
                       </div>
                     </div>
                   </div>
@@ -231,13 +234,13 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
         <footer className="p-4 bg-slate-50/80 dark:bg-slate-900/60 border-t border-slate-200/80 dark:border-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <AlertCircle size={14} className="text-amber-500" />
-            <span>حباب منفی به معنی قیمت پایین‌تر از ارزش طلای خام است.</span>
+            <span>{language === 'en' ? 'Negative bubble indicates price is below intrinsic raw gold melt value.' : 'حباب منفی به معنی قیمت پایین‌تر از ارزش طلای خام است.'}</span>
           </div>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-xs hover:bg-amber-400 transition-all"
           >
-            متوجه شدم
+            {t('common.confirm')}
           </button>
         </footer>
       </div>
