@@ -297,8 +297,16 @@ app.use(cors({
     credentials: true
 }));
 app.use(bodyParser.json());
-app.use('/api', apiLimiter); // Apply general rate limiting to all API routes
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use('/api', apiLimiter);
+app.use(express.static(path.join(__dirname, 'dist'), {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+    }
+}));
 
 const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'password';

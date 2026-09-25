@@ -51,7 +51,7 @@ const ExportImportModal = lazy(() => import('./components/ExportImportModal').th
 const CommandPalette = lazy(() => import('./components/CommandPalette').then(module => ({ default: module.CommandPalette })));
 const DcaCalculatorModal = lazy(() => import('./components/DcaCalculatorModal').then(module => ({ default: module.DcaCalculatorModal })));
 const PortfolioHistoryChart = lazy(() => import('./components/PortfolioHistoryChart').then(module => ({ default: module.PortfolioHistoryChart })));
-const MarketBoard = lazy(() => import('./components/MarketBoard').then(module => ({ default: module.MarketBoard })));
+import { MarketBoard } from './components/MarketBoard';
 import { CategoryPills, CategoryFilterType } from './components/CategoryPills';
 
 export default function App() {
