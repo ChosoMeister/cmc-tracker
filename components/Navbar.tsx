@@ -72,14 +72,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-14 sm:h-20 gap-2 sm:gap-4">
           
           {/* Right Section: Brand & Profile */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md sm:shadow-lg shadow-blue-500/25 ring-2 ring-blue-400/20 shrink-0">
               <Shield size={16} className="text-white sm:w-5 sm:h-5" />
             </div>
             
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-black text-sm sm:text-lg tracking-tight text-slate-800 dark:text-white truncate max-w-[110px] sm:max-w-[200px]">
+                <span className="font-black text-sm sm:text-base tracking-tight text-slate-800 dark:text-white whitespace-nowrap">
                   {displayName || (language === 'en' ? 'Portfolio' : 'سبد دارایی')}
                 </span>
                 <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
@@ -87,10 +87,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <div className="hidden sm:flex items-center gap-1.5 mt-0.5">
-                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold">
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold whitespace-nowrap">
                   {language === 'en' ? 'Asset Tracker' : 'مدیریت پورتفوی'}
                 </span>
-                <span className="text-[8px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded flex items-center gap-0.5 border border-indigo-500/20">
+                <span className="text-[8px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded flex items-center gap-0.5 border border-indigo-500/20 whitespace-nowrap">
                   <Sparkles size={8} /> {language === 'en' ? 'AI Powered' : 'هوش مصنوعی'}
                 </span>
               </div>
@@ -153,12 +153,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 haptic('light');
                 onOpenCommandPalette();
               }}
-              className="p-2 sm:px-3 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 transition-all flex items-center gap-2 text-xs font-bold"
-              title={t('nav.searchKbd') + ' (⌘K)'}
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center shrink-0"
+              title={`${t('nav.searchKbd')} (⌘K)`}
+              aria-label="Search"
             >
-              <Search size={16} className="text-blue-500" />
-              <span className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-500">{t('nav.searchKbd')}</span>
-              <kbd className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500">⌘K</kbd>
+              <Search size={18} className="text-blue-500" />
             </button>
 
             {/* Desktop-Only: Gold Bubble Tool */}
