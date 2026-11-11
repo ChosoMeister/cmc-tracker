@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import { fa, TranslationKeys } from '../locales/fa';
 import { en } from '../locales/en';
 
@@ -23,10 +23,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     try {
       const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
       if (saved === 'en' || saved === 'fa') return saved;
-    } catch (e) {
-      // localStorage unavailable
-    }
-    return 'fa'; // Default to Persian
+    } catch (e) {}
+    return 'fa';
   });
 
   const direction: Direction = language === 'fa' ? 'rtl' : 'ltr';
@@ -36,7 +34,6 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
       localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     } catch (e) {}
 
-    // Update document HTML direction and lang attribute
     document.documentElement.dir = direction;
     document.documentElement.lang = language;
 
@@ -49,21 +46,17 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [language, direction]);
 
-  const setLanguage = (lang: Language) => {
+  const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
-  };
+  }, []);
 
-  const toggleLanguage = () => {
+  const toggleLanguage = useCallback(() => {
     setLanguageState(prev => (prev === 'fa' ? 'en' : 'fa'));
-  };
+  }, []);
 
   const currentStrings = language === 'en' ? en : fa;
 
-  /**
-   * Helper function to get nested translation values
-   * e.g. t('nav.overview') or t('common.save')
-   */
-  const t = (path: string, fallback?: string): string => {
+  const t = useCallback((path: string, fallback?: string): string => {
     const keys = path.split('.');
     let current: any = currentStrings;
 
@@ -76,19 +69,19 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
 
     return typeof current === 'string' ? current : (fallback || path);
-  };
+  }, [currentStrings]);
+
+  const value = useMemo<LanguageContextType>(() => ({
+    language,
+    direction,
+    setLanguage,
+    toggleLanguage,
+    t,
+    strings: currentStrings,
+  }), [language, direction, setLanguage, toggleLanguage, t, currentStrings]);
 
   return (
-    <LanguageContext.Provider
-      value={{
-        language,
-        direction,
-        setLanguage,
-        toggleLanguage,
-        t,
-        strings: currentStrings,
-      }}
-    >
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

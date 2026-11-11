@@ -1,19 +1,24 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Search, 
-  TrendingUp, 
-  TrendingDown, 
-  Plus, 
-  Sparkles, 
-  RefreshCw, 
-  Coins, 
-  DollarSign, 
-  Zap, 
+import React, { useState, useMemo, useDeferredValue } from 'react';
+import {
+  Search,
+  TrendingUp,
+  TrendingDown,
+  Plus,
+  RefreshCw,
+  Coins,
+  DollarSign,
+  Zap,
   Calculator,
-  X
+  X,
+  BarChart3,
 } from 'lucide-react';
 import { PriceData, AssetSymbol, AssetType, allAssets, getAssetDetail } from '../types';
-import { formatToman, formatPercent, getAssetIconUrl, getAssetFallbackIcon } from '../utils/formatting';
+import {
+  formatToman,
+  formatPercent,
+  getAssetIconUrl,
+  getAssetFallbackIcon,
+} from '../utils/formatting';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTranslation } from '../contexts/LanguageContext';
 
@@ -48,9 +53,9 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
   const { haptic } = useHaptics();
   const [category, setCategory] = useState<MarketCategory>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredQuery = useDeferredValue(searchQuery);
   const [sortBy, setSortBy] = useState<SortOption>('DEFAULT');
 
-  // Generate all market items with current live prices
   const marketItems: MarketTileItem[] = useMemo(() => {
     if (!prices) return [];
 
@@ -60,11 +65,10 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
     const changes = prices.changes24h || {};
 
     const items: MarketTileItem[] = [];
-
-    // Unique symbols to prevent duplicates
     const seen = new Set<string>();
 
     allAssets.forEach((asset) => {
+      if (asset.symbol === '18AYAR') return; // Avoid duplicate 18K Gold tile next to GOLD18
       if (seen.has(asset.symbol)) return;
       seen.add(asset.symbol);
 
@@ -72,23 +76,32 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
       let change24h: number | undefined = changes[asset.symbol];
 
       if (asset.type === 'GOLD') {
-        priceToman = goldMap[asset.symbol] || (asset.symbol === 'GOLD18' ? prices.gold18ToToman : 0);
+        priceToman =
+          goldMap[asset.symbol] ||
+          (asset.symbol === 'GOLD18' ? prices.gold18ToToman : 0) ||
+          (asset.symbol === 'GRAM_COIN' ? goldMap.GERAMI || goldMap.SEK || 0 : 0);
+
         if (change24h === undefined) {
-          if (asset.symbol === 'GOLD18' || asset.symbol === '18AYAR') change24h = changes['IR_GOLD_18K'];
+          if (asset.symbol === 'GOLD18') change24h = changes['IR_GOLD_18K'];
           else if (asset.symbol === 'SEKKEH') change24h = changes['IR_COIN_EMAMI'];
           else if (asset.symbol === 'BAHAR') change24h = changes['IR_COIN_BAHAR'];
           else if (asset.symbol === 'NIM') change24h = changes['IR_COIN_HALF'];
           else if (asset.symbol === 'ROB') change24h = changes['IR_COIN_QUARTER'];
-          else if (asset.symbol === 'SEK') change24h = changes['IR_COIN_1G'];
+          else if (asset.symbol === 'GRAM_COIN') change24h = changes['IR_COIN_1G'] ?? changes['GERAMI'];
           else if (asset.symbol === 'ABSHODEH') change24h = changes['IR_GOLD_MELTED'];
         }
       } else if (asset.type === 'FIAT') {
-        priceToman = fiatMap[asset.symbol] || (asset.symbol === 'USD' ? prices.usdToToman : asset.symbol === 'EUR' ? prices.eurToToman : 0);
+        priceToman =
+          fiatMap[asset.symbol] ||
+          (asset.symbol === 'USD'
+            ? prices.usdToToman
+            : asset.symbol === 'EUR'
+              ? prices.eurToToman
+              : 0);
       } else if (asset.type === 'CRYPTO') {
         priceToman = cryptoMap[asset.symbol] || 0;
       }
 
-      // Only display items that have an active price
       if (priceToman > 0) {
         items.push({
           symbol: asset.symbol,
@@ -104,24 +117,20 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
     return items;
   }, [prices, language]);
 
-  // Filter and Sort Items
   const filteredAndSortedItems = useMemo(() => {
     let result = marketItems;
 
-    // Filter by Category
     if (category !== 'ALL') {
       result = result.filter((item) => item.type === category);
     }
 
-    // Filter by Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (deferredQuery.trim()) {
+      const q = deferredQuery.toLowerCase().trim();
       result = result.filter(
         (item) => item.name.toLowerCase().includes(q) || item.symbol.toLowerCase().includes(q)
       );
     }
 
-    // Sort items
     const sorted = [...result];
     switch (sortBy) {
       case 'GAINERS':
@@ -135,9 +144,8 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
       default:
         return sorted;
     }
-  }, [marketItems, category, searchQuery, sortBy]);
+  }, [marketItems, category, deferredQuery, sortBy]);
 
-  // Count per category
   const categoryCounts = useMemo(() => {
     return {
       ALL: marketItems.length,
@@ -162,40 +170,41 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
   }, [prices?.fetchedAt, language]);
 
   return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-300">
-      
+    <div className="space-y-5 pb-16 animate-in">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--card-bg)] border border-slate-200/80 dark:border-slate-800/80 rounded-[28px] p-5 sm:p-6 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shadow-inner">
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <h1 className="font-black text-lg sm:text-2xl text-slate-900 dark:text-white">
-                {t('market.title')}
-              </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5">
-                {t('market.subtitle')}
-              </p>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--card-bg)] border border-[color:var(--border-color)] rounded-[20px] p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[var(--brand-primary)] flex items-center justify-center shrink-0">
+            <BarChart3 size={20} />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg sm:text-xl text-[color:var(--text-primary)]">
+              {t('market.title')}
+            </h1>
+            <p className="text-xs text-[color:var(--text-muted)] font-medium mt-0.5">
+              {t('market.subtitle')}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-end sm:self-auto">
+        <div className="flex items-center gap-2.5 self-end sm:self-auto">
           {lastUpdatedFormatted && (
-            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-full" dir="ltr">
-              {t('common.updated')}: {lastUpdatedFormatted}
+            <span
+              className="text-xs font-semibold text-[color:var(--text-muted)] bg-[var(--muted-surface)] border border-[color:var(--border-color)] px-3 py-1.5 rounded-lg tabular-nums"
+              dir="ltr"
+            >
+              {t('common.updated')} {lastUpdatedFormatted}
             </span>
           )}
 
           <button
+            type="button"
             onClick={() => {
               haptic('light');
               onRefreshPrices();
             }}
             disabled={isPriceUpdating}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
+            className="min-h-[40px] flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs shadow-gold active:scale-95 transition-transform disabled:opacity-50"
           >
             <RefreshCw size={14} className={isPriceUpdating ? 'animate-spin' : ''} />
             <span>{isPriceUpdating ? t('common.loading') : t('market.refreshPrices')}</span>
@@ -203,11 +212,9 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
         </div>
       </div>
 
-      {/* Filter and Search Controls */}
+      {/* Filter & Search Controls */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 bg-[var(--muted-surface)] p-1 rounded-xl border border-[color:var(--border-color)] overflow-x-auto no-scrollbar">
           {[
             { id: 'ALL', label: t('market.allSymbols'), icon: null },
             { id: 'GOLD', label: t('market.goldAndCoins'), icon: Coins },
@@ -220,16 +227,23 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => handleSelectCategory(tab.id as MarketCategory)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all shrink-0 ${
+                className={`min-h-[38px] flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors shrink-0 ${
                   isActive
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[var(--card-bg)] text-[color:var(--text-primary)] shadow-sm border border-[color:var(--border-color)]'
+                    : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
                 }`}
               >
-                {Icon && <Icon size={14} />}
+                {Icon && <Icon size={14} className={isActive ? 'text-[var(--brand-primary)]' : ''} />}
                 <span>{tab.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${isActive ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500'}`}>
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded-md tabular-nums ${
+                    isActive
+                      ? 'bg-[var(--brand-soft)] text-[var(--brand-primary)]'
+                      : 'bg-[var(--pill-bg)] text-[color:var(--text-muted)]'
+                  }`}
+                >
                   {count}
                 </span>
               </button>
@@ -237,36 +251,44 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
           })}
         </div>
 
-        {/* Search & Sort */}
         <div className="flex items-center gap-2">
-          {/* Search Box */}
           <div className="relative flex-1 md:w-64">
-            <Search size={15} className={`absolute ${language === 'en' ? 'left-3' : 'right-3.5'} top-1/2 -translate-y-1/2 text-slate-400`} />
+            <Search
+              size={15}
+              className={`absolute ${
+                language === 'en' ? 'left-3.5' : 'right-3.5'
+              } top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]`}
+            />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('market.searchPlaceholder')}
-              className={`w-full ${language === 'en' ? 'pl-9 pr-8' : 'pl-8 pr-10'} py-2 text-xs font-bold rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all`}
+              className={`w-full min-h-[40px] ${
+                language === 'en' ? 'pl-9 pr-8' : 'pl-8 pr-10'
+              } py-2 text-base sm:text-xs font-semibold rounded-xl bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]`}
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery('')}
-                className={`absolute ${language === 'en' ? 'right-2.5' : 'left-2.5'} top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600`}
+                className={`absolute ${
+                  language === 'en' ? 'right-2.5' : 'left-2.5'
+                } top-1/2 -translate-y-1/2 p-1 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]`}
+                aria-label="Clear search"
               >
-                <X size={13} />
+                <X size={14} />
               </button>
             )}
           </div>
 
-          {/* Sort Selector */}
           <select
             value={sortBy}
             onChange={(e) => {
               haptic('selection');
               setSortBy(e.target.value as SortOption);
             }}
-            className="px-3 py-2 text-xs font-bold rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="min-h-[40px] px-3 py-2 text-xs font-bold rounded-xl bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] cursor-pointer"
           >
             <option value="DEFAULT">{t('market.sortDefault')}</option>
             <option value="GAINERS">{t('market.sortGainers')}</option>
@@ -275,16 +297,17 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
             <option value="PRICE_ASC">{t('market.sortPriceAsc')}</option>
           </select>
         </div>
-
       </div>
 
-      {/* Grid of Tiles (Bento Grid) */}
+      {/* Solid Surface Grid (No 95-card backdrop-blur-xl GPU bottleneck!) */}
       {filteredAndSortedItems.length === 0 ? (
-        <div className="text-center py-16 bg-[var(--card-bg)] border border-slate-200/80 dark:border-slate-800/80 rounded-[32px] p-8">
-          <p className="text-sm font-bold text-slate-400">{t('market.noResults')}</p>
+        <div className="text-center py-14 bg-[var(--card-bg)] border border-[color:var(--border-color)] rounded-[20px] p-8">
+          <p className="text-sm font-semibold text-[color:var(--text-muted)]">
+            {t('market.noResults')}
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
           {filteredAndSortedItems.map((item) => {
             const hasChange = typeof item.change24h === 'number';
             const isPositive = (item.change24h ?? 0) >= 0;
@@ -293,64 +316,66 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
             return (
               <div
                 key={item.symbol}
-                className="group relative bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 hover:border-blue-500/40 dark:hover:border-blue-500/40 rounded-3xl p-4 sm:p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between"
+                className="group bg-[var(--card-bg)] border border-[color:var(--border-color)] hover:border-[var(--brand-border)] rounded-[20px] p-4 shadow-sm hover-lift flex flex-col justify-between"
               >
-                {/* Top: Icon + Names + 24h Change Badge */}
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-slate-50 dark:bg-slate-800/80 p-1.5 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center overflow-hidden shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--muted-surface)] p-1.5 border border-[color:var(--border-color)] flex items-center justify-center overflow-hidden shrink-0">
                         <img
                           src={item.iconUrl}
                           alt={item.symbol}
-                          className="w-full h-full object-contain"
+                          width={28}
+                          height={28}
+                          decoding="async"
                           loading="lazy"
+                          className="w-full h-full object-contain"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = getAssetFallbackIcon(item.symbol);
                           }}
                         />
                       </div>
-                      <div>
-                        <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-1">
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-sm text-[color:var(--text-primary)] truncate">
                           {item.name}
                         </h3>
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md mt-0.5 inline-block">
+                        <span className="text-xs font-semibold text-[color:var(--text-muted)] bg-[var(--muted-surface)] px-1.5 py-0.5 rounded-md mt-0.5 inline-block">
                           {item.symbol}
                         </span>
                       </div>
                     </div>
 
-                    {/* 24h Change Pill */}
                     {hasChange && (
                       <div
                         dir="ltr"
-                        className={`text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-0.5 ring-1 ${
+                        className={`text-xs font-bold px-2 py-0.5 rounded-lg inline-flex items-center gap-0.5 tabular-nums shrink-0 ${
                           isPositive
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-rose-500/20'
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                            : 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
                         }`}
-                        title={language === 'en' ? '24h Change' : 'تغییرات ۲۴ ساعته'}
                       >
-                        {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                        <span>{isPositive ? '+' : ''}{formatPercent(item.change24h!, language)}</span>
+                        {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                        <span>{formatPercent(item.change24h!, language)}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Middle: Big Price Display */}
                   <div className="my-3">
-                    <span className="text-[10px] font-bold text-slate-400 block mb-0.5">{t('market.livePrice')}</span>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight" dir="ltr">
+                    <span className="text-xs font-medium text-[color:var(--text-muted)] block mb-0.5">
+                      {t('market.livePrice')}
+                    </span>
+                    <div className="flex items-baseline gap-1.5 tabular-nums" dir="ltr">
+                      <span className="text-lg font-extrabold text-[color:var(--text-primary)] tracking-tight">
                         {formatToman(item.priceToman, language)}
                       </span>
-                      <span className="text-xs font-bold text-slate-400">{t('common.toman')}</span>
+                      <span className="text-xs font-semibold text-[color:var(--text-muted)]">
+                        {t('common.toman')}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Bottom Action Buttons */}
-                <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="pt-3 mt-2 border-t border-[color:var(--border-color)] flex items-center justify-between gap-2">
                   {isGold && (
                     <button
                       type="button"
@@ -358,10 +383,10 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
                         haptic('selection');
                         onOpenGoldBubble();
                       }}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-black text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-1 transition-colors"
+                      className="min-h-[36px] px-2.5 py-1.5 rounded-xl text-xs font-bold text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[var(--muted-surface)] flex items-center gap-1 transition-colors"
                       title={t('market.bubbleCalc')}
                     >
-                      <Calculator size={13} />
+                      <Calculator size={14} />
                       <span>{t('market.bubble')}</span>
                     </button>
                   )}
@@ -372,20 +397,19 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({
                       haptic('light');
                       onOpenNewTxWithAsset(item.symbol);
                     }}
-                    className={`${language === 'en' ? 'ml-auto' : 'mr-auto'} px-3 py-1.5 rounded-xl text-[11px] font-black bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center gap-1 transition-colors`}
-                    title={t('market.addToPortfolio')}
+                    className={`${
+                      language === 'en' ? 'ml-auto' : 'mr-auto'
+                    } min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--brand-soft)] hover:bg-[var(--brand-primary)] text-[var(--brand-primary)] hover:text-white border border-[var(--brand-border)] flex items-center gap-1 transition-colors`}
                   >
-                    <Plus size={13} />
+                    <Plus size={14} />
                     <span>{t('market.addToPortfolio')}</span>
                   </button>
                 </div>
-
               </div>
             );
           })}
         </div>
       )}
-
     </div>
   );
 };

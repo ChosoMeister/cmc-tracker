@@ -1,33 +1,64 @@
-
 import { getAssetDetail } from '../types';
+
+const formatterCache = new Map<string, Intl.NumberFormat>();
+const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+const getNumberFormatter = (locale: string, options?: Intl.NumberFormatOptions): Intl.NumberFormat => {
+  const key = `${locale}:${options?.minimumFractionDigits ?? ''}:${options?.maximumFractionDigits ?? ''}`;
+  let fmt = formatterCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(locale, options);
+    formatterCache.set(key, fmt);
+  }
+  return fmt;
+};
+
+export const formatDateCached = (isoOrDate: string | Date, lang: 'fa' | 'en' = 'fa', withTime = false): string => {
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  if (isNaN(d.getTime())) return '';
+  const locale = lang === 'en' ? 'en-US' : 'fa-IR';
+  const key = `${locale}:${withTime ? 'dt' : 'd'}`;
+  let fmt = dateFormatterCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(
+      locale,
+      withTime
+        ? { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+        : { year: 'numeric', month: 'short', day: 'numeric' }
+    );
+    dateFormatterCache.set(key, fmt);
+  }
+  return fmt.format(d);
+};
 
 export const formatToman = (value: number, lang: 'fa' | 'en' = 'fa'): string => {
   const locale = lang === 'en' ? 'en-US' : 'fa-IR';
-  return new Intl.NumberFormat(locale).format(Math.round(value));
+  return getNumberFormatter(locale).format(Math.round(value || 0));
 };
 
 export const formatNumber = (value: number, decimals = 2, lang: 'fa' | 'en' = 'fa'): string => {
-  // اگر عدد خیلی کوچک بود اعشار بیشتری نشان بده
-  const finalDecimals = value < 1 && value > 0 ? Math.max(decimals, 4) : decimals;
+  const safeVal = Number.isFinite(value) ? value : 0;
+  const finalDecimals = safeVal < 1 && safeVal > 0 ? Math.max(decimals, 4) : decimals;
   const locale = lang === 'en' ? 'en-US' : 'fa-IR';
-  return new Intl.NumberFormat(locale, {
+  return getNumberFormatter(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: finalDecimals,
-  }).format(value);
+  }).format(safeVal);
 };
 
 export const formatPercent = (value: number, lang: 'fa' | 'en' = 'fa'): string => {
-  const sign = value > 0 ? '+' : '';
+  const safeVal = Number.isFinite(value) ? value : 0;
+  const sign = safeVal > 0 ? '+' : '';
   const locale = lang === 'en' ? 'en-US' : 'fa-IR';
   const suffix = lang === 'en' ? '%' : '٪';
-  return `${sign}${new Intl.NumberFormat(locale, {
+  return `${sign}${getNumberFormatter(locale, {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
-  }).format(value)}${suffix}`;
+  }).format(safeVal)}${suffix}`;
 };
 
 export const toEnglishDigits = (str: string): string => {
-  if (!str) return "";
+  if (!str) return '';
   return str
     .toString()
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
@@ -35,17 +66,17 @@ export const toEnglishDigits = (str: string): string => {
 };
 
 export const formatCurrencyInput = (val: string | number) => {
-  if (val === undefined || val === null || val === "") return "";
-  const cleanVal = toEnglishDigits(val.toString()).replace(/,/g, "").trim();
+  if (val === undefined || val === null || val === '') return '';
+  const cleanVal = toEnglishDigits(val.toString()).replace(/,/g, '').trim();
   if (!cleanVal || isNaN(Number(cleanVal))) return cleanVal;
   const parts = cleanVal.split('.');
-  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return parts.join('.');
 };
 
 export const parseCurrencyInput = (val: string | number) => {
   if (!val) return 0;
-  const cleanVal = toEnglishDigits(val.toString()).replace(/,/g, "").trim();
+  const cleanVal = toEnglishDigits(val.toString()).replace(/,/g, '').trim();
   const num = parseFloat(cleanVal);
   return isNaN(num) ? 0 : num;
 };
@@ -78,6 +109,8 @@ const FIAT_FLAG_MAP: Record<string, string> = {
 
 const GOLD_ICON_FALLBACK = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="gGold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23f59e0b"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><rect rx="28" width="128" height="128" fill="url(%23gGold)"/><circle cx="64" cy="64" r="46" fill="%2378350f" opacity="0.2"/><text x="64" y="75" text-anchor="middle" font-size="28" font-family="sans-serif" font-weight="900" fill="%23ffffff">طلا</text></svg>';
 
+const GRAM_COIN_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="gSek" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fcd34d"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><circle cx="64" cy="64" r="58" fill="url(%23gSek)" stroke="%23b45309" stroke-width="4"/><text x="64" y="74" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="900" fill="%2378350f">گرمی</text></svg>';
+
 const GOLD_ICON_MAP: Record<string, string> = {
   GOLD18: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g18" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fbbf24"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><rect rx="28" width="128" height="128" fill="url(%23g18)"/><circle cx="64" cy="64" r="44" fill="%2378350f" opacity="0.2"/><text x="64" y="74" text-anchor="middle" font-size="28" font-family="sans-serif" font-weight="900" fill="%23ffffff">18K</text></svg>',
   '18AYAR': 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g18a" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fbbf24"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><rect rx="28" width="128" height="128" fill="url(%23g18a)"/><circle cx="64" cy="64" r="44" fill="%2378350f" opacity="0.2"/><text x="64" y="74" text-anchor="middle" font-size="28" font-family="sans-serif" font-weight="900" fill="%23ffffff">18K</text></svg>',
@@ -88,7 +121,8 @@ const GOLD_ICON_MAP: Record<string, string> = {
   BAHAR: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="gBah" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fcd34d"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><circle cx="64" cy="64" r="58" fill="url(%23gBah)" stroke="%23b45309" stroke-width="4"/><circle cx="64" cy="64" r="48" fill="none" stroke="%23ffffff" stroke-width="2" stroke-dasharray="6,4" opacity="0.6"/><text x="64" y="74" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="900" fill="%2378350f">بهار</text></svg>',
   NIM: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="gNim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fcd34d"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><circle cx="64" cy="64" r="58" fill="url(%23gNim)" stroke="%23b45309" stroke-width="4"/><text x="64" y="74" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="900" fill="%2378350f">نیم</text></svg>',
   ROB: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="gRob" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fcd34d"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><circle cx="64" cy="64" r="58" fill="url(%23gRob)" stroke="%23b45309" stroke-width="4"/><text x="64" y="74" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="900" fill="%2378350f">ربع</text></svg>',
-  SEK: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="gSek" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fcd34d"/><stop offset="1" stop-color="%23d97706"/></linearGradient></defs><circle cx="64" cy="64" r="58" fill="url(%23gSek)" stroke="%23b45309" stroke-width="4"/><text x="64" y="74" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="900" fill="%2378350f">گرمی</text></svg>',
+  GRAM_COIN: GRAM_COIN_SVG,
+  GERAMI: GRAM_COIN_SVG,
   USD_XAU: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="gXau" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fde047"/><stop offset="1" stop-color="%23b45309"/></linearGradient></defs><rect rx="28" width="128" height="128" fill="url(%23gXau)"/><circle cx="64" cy="64" r="44" fill="%2378350f" opacity="0.2"/><text x="64" y="74" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="900" fill="%23ffffff">اونس</text></svg>'
 };
 
@@ -114,7 +148,6 @@ export const getAssetIconUrl = (symbol: string): string => {
     return getFiatIcon(symbol);
   }
 
-  // طلا و سکه با آیکون‌های وکتور اختصاصی
   return GOLD_ICON_MAP[symbol] || GOLD_ICON_FALLBACK;
 };
 

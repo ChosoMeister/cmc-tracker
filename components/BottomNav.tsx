@@ -1,53 +1,82 @@
 import React, { memo, useCallback } from 'react';
-import { LayoutDashboard, PieChart, History, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, PieChart, History, TrendingUp, Plus } from 'lucide-react';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTranslation } from '../contexts/LanguageContext';
 
 interface BottomNavProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
+  onOpenNewTx: () => void;
 }
 
-const BottomNavComponent: React.FC<BottomNavProps> = ({ currentTab, onTabChange }) => {
+const BottomNavComponent: React.FC<BottomNavProps> = ({
+  currentTab,
+  onTabChange,
+  onOpenNewTx,
+}) => {
   const { t } = useTranslation();
   const { haptic } = useHaptics();
 
-  const tabs = [
-    { id: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
-    { id: 'market', label: t('nav.market'), icon: TrendingUp },
-    { id: 'holdings', label: t('nav.holdings'), icon: PieChart },
-    { id: 'transactions', label: t('nav.transactions'), icon: History },
-  ];
+  const handleTabChange = useCallback(
+    (tabId: string) => {
+      haptic('selection');
+      onTabChange(tabId);
+    },
+    [haptic, onTabChange]
+  );
 
-  const handleTabChange = useCallback((tabId: string) => {
-    haptic('selection');
-    onTabChange(tabId);
-  }, [haptic, onTabChange]);
+  const renderTabButton = (
+    id: string,
+    label: string,
+    Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
+  ) => {
+    const isActive = currentTab === id;
+    return (
+      <button
+        key={id}
+        type="button"
+        onClick={() => handleTabChange(id)}
+        className={`min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
+          isActive
+            ? 'text-[var(--brand-primary)] font-bold'
+            : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] font-medium'
+        }`}
+      >
+        <Icon size={20} strokeWidth={isActive ? 2.5 : 1.9} />
+        <span className="text-xs leading-none truncate max-w-[68px]">{label}</span>
+      </button>
+    );
+  };
 
   return (
-    <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[520px] px-6 z-[60] pb-safe">
-      <div className="rounded-[32px] flex justify-around items-center py-4 px-2 shadow-2xl backdrop-blur-3xl backdrop-saturate-150 bg-white/40 dark:bg-black/30 border border-white/20 dark:border-white/10 ring-1 ring-white/30 dark:ring-white/5 transition-all duration-300">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = currentTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative px-4 ${isActive ? 'text-blue-600 dark:text-blue-300 scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.55)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-            >
-              <div className={`p-1.5 rounded-full transition-all duration-500 ${isActive ? 'bg-blue-100/90 dark:bg-blue-500/20 shadow-[0_0_25px_rgba(59,130,246,0.35)]' : 'bg-white/40 dark:bg-white/5'}`}>
-                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-              </div>
-              <span className={`text-[9px] font-black tracking-wide ${isActive ? 'opacity-100' : 'opacity-70'}`}>
-                {tab.label}
-              </span>
-            </button>
-          );
-        })}
+    <nav
+      aria-label="Mobile Bottom Navigation"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-[60] glass-strong border-t border-[color:var(--border-color)] px-2 pt-2 pb-safe"
+    >
+      <div className="max-w-md mx-auto grid grid-cols-5 items-center gap-1">
+        {renderTabButton('overview', t('nav.overview'), LayoutDashboard)}
+        {renderTabButton('holdings', t('nav.holdings'), PieChart)}
+
+        {/* Center Thumb-Zone Primary Action (>=44x44px) */}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              haptic('success');
+              onOpenNewTx();
+            }}
+            className="w-12 h-11 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow-gold active:scale-95 transition-transform flex items-center justify-center"
+            title={t('nav.newTx')}
+            aria-label={t('nav.newTx')}
+          >
+            <Plus size={22} strokeWidth={2.8} />
+          </button>
+        </div>
+
+        {renderTabButton('market', t('nav.market'), TrendingUp)}
+        {renderTabButton('transactions', t('nav.transactions'), History)}
       </div>
-    </div>
+    </nav>
   );
 };
 

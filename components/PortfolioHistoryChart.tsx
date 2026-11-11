@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Calendar, Sparkles, Filter, Database } from 'lucide-react';
-import { Transaction, PriceData, AssetSummary, MarketHistoryMap } from '../types';
-import { formatNumber, formatPercent, formatToman } from '../utils/formatting';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { TrendingUp, TrendingDown, Calendar, Database } from 'lucide-react';
+import { Transaction, PriceData, MarketHistoryMap, resolveAssetSymbol } from '../types';
+import { formatPercent, formatToman, formatDateCached } from '../utils/formatting';
 import { API } from '../services/api';
 import { useTranslation } from '../contexts/LanguageContext';
 
@@ -14,19 +14,21 @@ interface PortfolioHistoryChartProps {
 
 type Timeframe = '1M' | '3M' | '6M' | '1Y' | 'ALL';
 
-/**
- * Historical benchmark prices for major assets (Gold 18k, USD, EUR, ETH, BTC, ADA)
- * fallback keyframes if server history is unavailable
- */
-const HISTORICAL_PRICE_KEYFRAMES: Array<{
-  timestamp: number; // Date timestamp
+interface PriceKeyframe {
+  timestamp: number;
   usdToman: number;
   gold18Toman: number;
   eurToman: number;
   ethUsd: number;
   btcUsd: number;
   adaUsd: number;
-}> = [
+}
+
+/**
+ * Historical benchmark prices for major assets (Gold 18k, USD, EUR, ETH, BTC, ADA)
+ * fallback keyframes if server history is unavailable
+ */
+const HISTORICAL_PRICE_KEYFRAMES: PriceKeyframe[] = [
   { timestamp: new Date('2024-10-01').getTime(), usdToman: 61500, gold18Toman: 3950000, eurToman: 67000, ethUsd: 2450, btcUsd: 61000, adaUsd: 0.34 },
   { timestamp: new Date('2024-10-28').getTime(), usdToman: 66000, gold18Toman: 4350000, eurToman: 71500, ethUsd: 2520, btcUsd: 68000, adaUsd: 0.35 },
   { timestamp: new Date('2024-11-15').getTime(), usdToman: 68500, gold18Toman: 4300000, eurToman: 72500, ethUsd: 3100, btcUsd: 88000, adaUsd: 0.65 },
@@ -65,62 +67,26 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
     profitPct: number;
   } | null>(null);
 
-  // Load real server history on mount
   useEffect(() => {
     let isMounted = true;
-    API.getMarketHistory().then(history => {
-      if (isMounted && history && Object.keys(history).length > 0) {
-        setServerHistory(history);
-        setIsHistoryLoaded(true);
-      }
-    }).catch(() => {});
-    return () => { isMounted = false; };
+    API.getMarketHistory()
+      .then((history) => {
+        if (isMounted && history && Object.keys(history).length > 0) {
+          setServerHistory(history);
+          setIsHistoryLoaded(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Helper to interpolate price for a specific asset at any timestamp
-  const getAssetPriceAtTime = (symbol: string, time: number): number => {
+  const sortedKeyframes = useMemo(() => {
     const liveUsd = prices?.usdToToman || 190000;
     const liveGold = prices?.gold18ToToman || 14000000;
     const liveEur = prices?.eurToToman || prices?.fiatPricesToman?.EUR || 205000;
-
-    // Check if we have exact real historical data from server on this date
-    const dateKey = new Date(time).toISOString().split('T')[0];
-    if (serverHistory && serverHistory[dateKey]) {
-      const dayData = serverHistory[dateKey];
-      const usdOnDay = dayData['USD'] || liveUsd;
-
-      if ((symbol === 'GOLD18' || symbol === '18AYAR') && dayData['GOLD18']) {
-        return dayData['GOLD18'];
-      }
-      if (symbol === 'ABSHODEH' && dayData['GOLD18']) {
-        return dayData['GOLD18'] * 4.3318;
-      }
-      if ((symbol === 'SEKKEH' || symbol === 'BAHAR') && (dayData['SEKKEH'] || dayData['GOLD18'])) {
-        return dayData['SEKKEH'] || (dayData['GOLD18'] * 8.133 * 1.25);
-      }
-      if (symbol === 'NIM' && (dayData['NIM'] || dayData['GOLD18'])) {
-        return dayData['NIM'] || (dayData['GOLD18'] * 4.066 * 1.30);
-      }
-      if (symbol === 'ROB' && (dayData['ROB'] || dayData['GOLD18'])) {
-        return dayData['ROB'] || (dayData['GOLD18'] * 2.033 * 1.40);
-      }
-      if (symbol === 'GERAMI' && (dayData['GERAMI'] || dayData['GOLD18'])) {
-        return dayData['GERAMI'] || (dayData['GOLD18'] * 1.010 * 1.45);
-      }
-      if ((symbol === 'USD' || symbol === 'USDT' || symbol === 'USD-HAV') && dayData['USD']) {
-        return dayData['USD'];
-      }
-      if ((symbol === 'EUR' || symbol === 'EUR-HAV') && dayData['EUR']) {
-        return dayData['EUR'];
-      }
-      // Crypto directly in USD * USD_IRT on that day
-      if (dayData[symbol] && dayData['USD']) {
-        return dayData[symbol] * dayData['USD'];
-      }
-    }
-
-    // Fallback: Interpolate across keyframes
-    const allKeyframes = [
+    return [
       ...HISTORICAL_PRICE_KEYFRAMES,
       {
         timestamp: Date.now(),
@@ -130,59 +96,100 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
         ethUsd: 2150,
         btcUsd: 92000,
         adaUsd: 0.65,
-      }
+      },
     ].sort((a, b) => a.timestamp - b.timestamp);
+  }, [prices]);
 
-    if (time <= allKeyframes[0].timestamp) {
-      const k = allKeyframes[0];
-      return computePriceForSymbol(symbol, k, liveUsd);
-    }
-    if (time >= allKeyframes[allKeyframes.length - 1].timestamp) {
-      const k = allKeyframes[allKeyframes.length - 1];
-      return computePriceForSymbol(symbol, k, liveUsd);
-    }
+  const computePriceForSymbol = useCallback(
+    (symbol: string, k: PriceKeyframe, liveUsd: number): number => {
+      if (symbol === 'GOLD18' || symbol === '18AYAR') return k.gold18Toman;
+      if (symbol === 'ABSHODEH') return k.gold18Toman * 4.3318;
+      if (symbol === 'SEKKEH' || symbol === 'BAHAR') return k.gold18Toman * 8.133 * (0.9 / 0.75) * 1.08;
+      if (symbol === 'NIM') return k.gold18Toman * 4.066 * (0.9 / 0.75) * 1.15;
+      if (symbol === 'ROB') return k.gold18Toman * 2.033 * (0.9 / 0.75) * 1.25;
+      if (symbol === 'GRAM_COIN' || symbol === 'GERAMI') return k.gold18Toman * 1.01 * (0.9 / 0.75) * 1.3;
+      if (symbol === 'USD' || symbol === 'USDT' || symbol === 'USD-HAV') return k.usdToman;
+      if (symbol === 'EUR' || symbol === 'EUR-HAV') return k.eurToman;
+      if (symbol === 'ETH') return k.ethUsd * k.usdToman;
+      if (symbol === 'BTC') return k.btcUsd * k.usdToman;
+      if (symbol === 'ADA') return k.adaUsd * k.usdToman;
+      if (symbol === 'ETC') return (k.ethUsd / 100) * k.usdToman;
 
-    // Find bounding keyframes
-    let kPrev = allKeyframes[0];
-    let kNext = allKeyframes[allKeyframes.length - 1];
+      const currentPrice =
+        prices?.fiatPricesToman?.[symbol] ||
+        prices?.cryptoPricesToman?.[symbol] ||
+        prices?.goldPricesToman?.[symbol] ||
+        liveUsd;
+      return currentPrice * (k.usdToman / liveUsd);
+    },
+    [prices]
+  );
 
-    for (let i = 0; i < allKeyframes.length - 1; i++) {
-      if (time >= allKeyframes[i].timestamp && time <= allKeyframes[i + 1].timestamp) {
-        kPrev = allKeyframes[i];
-        kNext = allKeyframes[i + 1];
-        break;
+  const getAssetPriceAtTime = useCallback(
+    (symbol: string, time: number): number => {
+      const liveUsd = prices?.usdToToman || 190000;
+      const dateKey = new Date(time).toISOString().split('T')[0];
+
+      if (serverHistory && serverHistory[dateKey]) {
+        const dayData = serverHistory[dateKey];
+        if ((symbol === 'GOLD18' || symbol === '18AYAR') && dayData.GOLD18) {
+          return dayData.GOLD18;
+        }
+        if (symbol === 'ABSHODEH' && dayData.GOLD18) {
+          return dayData.GOLD18 * 4.3318;
+        }
+        if ((symbol === 'SEKKEH' || symbol === 'BAHAR') && (dayData.SEKKEH || dayData.GOLD18)) {
+          return dayData.SEKKEH || dayData.GOLD18 * 8.133 * 1.25;
+        }
+        if (symbol === 'NIM' && (dayData.NIM || dayData.GOLD18)) {
+          return dayData.NIM || dayData.GOLD18 * 4.066 * 1.3;
+        }
+        if (symbol === 'ROB' && (dayData.ROB || dayData.GOLD18)) {
+          return dayData.ROB || dayData.GOLD18 * 2.033 * 1.4;
+        }
+        if ((symbol === 'GRAM_COIN' || symbol === 'GERAMI') && (dayData.GERAMI || dayData.GRAM_COIN || dayData.GOLD18)) {
+          return dayData.GERAMI || dayData.GRAM_COIN || dayData.GOLD18 * 1.01 * 1.45;
+        }
+        if ((symbol === 'USD' || symbol === 'USDT' || symbol === 'USD-HAV') && dayData.USD) {
+          return dayData.USD;
+        }
+        if ((symbol === 'EUR' || symbol === 'EUR-HAV') && dayData.EUR) {
+          return dayData.EUR;
+        }
+        if (dayData[symbol] && dayData.USD) {
+          return dayData[symbol] * dayData.USD;
+        }
       }
-    }
 
-    const span = kNext.timestamp - kPrev.timestamp || 1;
-    const ratio = (time - kPrev.timestamp) / span;
+      if (time <= sortedKeyframes[0].timestamp) {
+        return computePriceForSymbol(symbol, sortedKeyframes[0], liveUsd);
+      }
+      if (time >= sortedKeyframes[sortedKeyframes.length - 1].timestamp) {
+        return computePriceForSymbol(symbol, sortedKeyframes[sortedKeyframes.length - 1], liveUsd);
+      }
 
-    const prevP = computePriceForSymbol(symbol, kPrev, liveUsd);
-    const nextP = computePriceForSymbol(symbol, kNext, liveUsd);
+      let kPrev = sortedKeyframes[0];
+      let kNext = sortedKeyframes[sortedKeyframes.length - 1];
 
-    return prevP + (nextP - prevP) * ratio;
-  };
+      for (let i = 0; i < sortedKeyframes.length - 1; i++) {
+        if (time >= sortedKeyframes[i].timestamp && time <= sortedKeyframes[i + 1].timestamp) {
+          kPrev = sortedKeyframes[i];
+          kNext = sortedKeyframes[i + 1];
+          break;
+        }
+      }
 
-  const computePriceForSymbol = (symbol: string, k: typeof HISTORICAL_PRICE_KEYFRAMES[0], liveUsd: number): number => {
-    if (symbol === 'GOLD18' || symbol === '18AYAR') return k.gold18Toman;
-    if (symbol === 'ABSHODEH') return k.gold18Toman * 4.33;
-    if (symbol === 'SEKKEH' || symbol === 'BAHAR') return k.gold18Toman * 8.133 * (0.9 / 0.75) * 1.08;
-    if (symbol === 'NIM') return k.gold18Toman * 4.066 * (0.9 / 0.75) * 1.15;
-    if (symbol === 'ROB') return k.gold18Toman * 2.033 * (0.9 / 0.75) * 1.25;
-    if (symbol === 'SEK') return k.gold18Toman * 1.010 * (0.9 / 0.75) * 1.30;
-    if (symbol === 'USD' || symbol === 'USDT' || symbol === 'USD-HAV') return k.usdToman;
-    if (symbol === 'EUR' || symbol === 'EUR-HAV') return k.eurToman;
-    if (symbol === 'ETH') return k.ethUsd * k.usdToman;
-    if (symbol === 'BTC') return k.btcUsd * k.usdToman;
-    if (symbol === 'ADA') return k.adaUsd * k.usdToman;
-    if (symbol === 'ETC') return (k.ethUsd / 100) * k.usdToman;
+      const span = kNext.timestamp - kPrev.timestamp || 1;
+      const ratio = (time - kPrev.timestamp) / span;
+      const prevP = computePriceForSymbol(symbol, kPrev, liveUsd);
+      const nextP = computePriceForSymbol(symbol, kNext, liveUsd);
 
-    // Default fallback ratio
-    const currentPrice = prices?.fiatPricesToman?.[symbol] || prices?.cryptoPricesToman?.[symbol] || liveUsd;
-    return (currentPrice * (k.usdToman / liveUsd));
-  };
+      return prevP + (nextP - prevP) * ratio;
+    },
+    [serverHistory, sortedKeyframes, computePriceForSymbol, prices]
+  );
 
-  // Generate historical curve based on transactions and realistic market prices
+  // Generate historical curve based on transactions and official market archives
   const chartData = useMemo(() => {
     if (!transactions || transactions.length === 0 || currentTotalValue <= 0) {
       return [];
@@ -194,8 +201,6 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
 
     const firstTxDate = new Date(sortedTxs[0].buyDateTime);
     const now = new Date();
-
-    // Determine start date based on timeframe
     let startDate = new Date(firstTxDate);
     const oneDayMs = 24 * 60 * 60 * 1000;
 
@@ -230,39 +235,43 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
     for (let i = 0; i < numPoints; i++) {
       const pointTime = i === numPoints - 1 ? now.getTime() : startDate.getTime() + i * stepMs;
       const d = new Date(pointTime);
+      const dateStr = d.toISOString().split('T')[0];
 
-      // Calculate holdings & cost basis at this timestamp
       let runningCost = 0;
       const runningQtyMap: Record<string, number> = {};
+      const costMap: Record<string, number> = {};
 
-      sortedTxs.forEach(tx => {
+      sortedTxs.forEach((tx) => {
         const txTime = new Date(tx.buyDateTime).getTime();
         if (txTime <= pointTime) {
           const type = tx.type || 'BUY';
-          const sym = tx.assetSymbol;
-          const priceToman = tx.buyCurrency === 'TOMAN'
-            ? tx.buyPricePerUnit
-            : tx.buyPricePerUnit * (prices?.usdToToman || 190000);
+          const sym = resolveAssetSymbol(tx);
+          const usdOnTxDay = getAssetPriceAtTime('USD', txTime) || prices?.usdToToman || 190000;
+          const priceToman =
+            tx.buyCurrency === 'TOMAN' ? tx.buyPricePerUnit : tx.buyPricePerUnit * usdOnTxDay;
 
           if (type === 'BUY') {
             runningQtyMap[sym] = (runningQtyMap[sym] || 0) + tx.quantity;
-            runningCost += (tx.quantity * priceToman) + (tx.feesToman || 0);
+            costMap[sym] = (costMap[sym] || 0) + tx.quantity * priceToman + (tx.feesToman || 0);
           } else if (type === 'SELL') {
-            runningQtyMap[sym] = Math.max(0, (runningQtyMap[sym] || 0) - tx.quantity);
+            const prevQty = runningQtyMap[sym] || 0;
+            const avgBuy = prevQty > 0 ? (costMap[sym] || 0) / prevQty : priceToman;
+            runningQtyMap[sym] = Math.max(0, prevQty - tx.quantity);
+            costMap[sym] = Math.max(0, (costMap[sym] || 0) - tx.quantity * avgBuy);
           }
         }
       });
 
-      // Calculate exact total portfolio value on this day using historical asset prices
+      runningCost = Object.values(costMap).reduce((acc, v) => acc + v, 0);
+
       let portfolioValAtDay = 0;
       Object.entries(runningQtyMap).forEach(([sym, qty]) => {
         if (qty > 0) {
-          const unitPrice = getAssetPriceAtTime(sym, pointTime);
+          const unitPrice = getAssetPriceAtDayOrTime(sym, pointTime, getAssetPriceAtTime);
           portfolioValAtDay += qty * unitPrice;
         }
       });
 
-      // Ensure last point is exactly live value
       if (i === numPoints - 1) {
         portfolioValAtDay = currentTotalValue;
         runningCost = currentCostBasis;
@@ -270,12 +279,11 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
 
       const profit = portfolioValAtDay - runningCost;
       const profitPct = runningCost > 0 ? (profit / runningCost) * 100 : 0;
-      const jalaliStr = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
 
       points.push({
         date: d,
-        dateStr: d.toISOString().split('T')[0],
-        jalaliStr,
+        dateStr,
+        jalaliStr: formatDateCached(d.toISOString(), 'fa'),
         value: Math.round(portfolioValAtDay),
         cost: Math.round(runningCost),
         profit: Math.round(profit),
@@ -284,13 +292,22 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
     }
 
     return points;
-  }, [transactions, prices, currentTotalValue, currentCostBasis, timeframe]);
+  }, [
+    transactions,
+    prices,
+    currentTotalValue,
+    currentCostBasis,
+    timeframe,
+    serverHistory,
+    getAssetPriceAtTime,
+  ]);
 
-  // Calculate SVG Path
-  const { pathD, areaD, minVal, maxVal, activePoints } = useMemo(() => {
-    if (chartData.length < 2) return { pathD: '', areaD: '', minVal: 0, maxVal: 0, activePoints: [] };
+  const { pathD, areaD, activePoints } = useMemo(() => {
+    if (chartData.length < 2) {
+      return { pathD: '', areaD: '', activePoints: [] };
+    }
 
-    const values = chartData.map(p => p.value);
+    const values = chartData.map((p) => p.value);
     const minVal = Math.min(...values) * 0.95;
     const maxVal = Math.max(...values) * 1.05;
     const range = maxVal - minVal || 1;
@@ -299,102 +316,124 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
     const height = 220;
     const padding = 20;
 
-    const activePoints = chartData.map((p, i) => {
+    const pts = chartData.map((p, i) => {
       const x = padding + (i / (chartData.length - 1)) * (width - 2 * padding);
       const y = height - padding - ((p.value - minVal) / range) * (height - 2 * padding);
       return { ...p, x, y };
     });
 
-    // Smooth Bezier Curve Path
-    let pathD = `M ${activePoints[0].x} ${activePoints[0].y}`;
-    for (let i = 0; i < activePoints.length - 1; i++) {
-      const p0 = activePoints[i === 0 ? 0 : i - 1];
-      const p1 = activePoints[i];
-      const p2 = activePoints[i + 1];
-      const p3 = activePoints[i + 2 >= activePoints.length ? activePoints.length - 1 : i + 2];
+    let curveD = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i === 0 ? 0 : i - 1];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2 >= pts.length ? pts.length - 1 : i + 2];
 
       const cp1x = p1.x + (p2.x - p0.x) / 6;
       const cp1y = p1.y + (p2.y - p0.y) / 6;
       const cp2x = p2.x - (p3.x - p1.x) / 6;
       const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-      pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+      curveD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
     }
 
-    const lastX = activePoints[activePoints.length - 1].x;
-    const firstX = activePoints[0].x;
-    const areaD = `${pathD} L ${lastX} ${height} L ${firstX} ${height} Z`;
+    const lastX = pts[pts.length - 1].x;
+    const firstX = pts[0].x;
+    const fillD = `${curveD} L ${lastX} ${height} L ${firstX} ${height} Z`;
 
-    return { pathD, areaD, minVal, maxVal, activePoints };
+    return { pathD: curveD, areaD: fillD, activePoints: pts };
   }, [chartData]);
 
   if (!transactions || transactions.length === 0) return null;
 
   const isProfit = currentTotalValue >= currentCostBasis;
-  const activeDisplay = hoveredPoint || (chartData.length > 0 ? chartData[chartData.length - 1] : null);
+  const strokeColor = isProfit ? '#10b981' : '#f43f5e';
+  const activeDisplay =
+    hoveredPoint || (chartData.length > 0 ? chartData[chartData.length - 1] : null);
 
   return (
-    <div className="bg-[var(--card-bg)] text-[color:var(--text-primary)] rounded-[28px] sm:rounded-[36px] p-5 sm:p-6 shadow-sm border border-slate-200/80 dark:border-slate-800/80 space-y-5 transition-all">
-      
+    <section className="bg-[var(--card-bg)] text-[color:var(--text-primary)] rounded-[20px] p-5 sm:p-6 shadow-sm border border-[color:var(--border-color)] space-y-5">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-xs font-bold text-[color:var(--text-muted)] uppercase tracking-wider">
               {t('chart.portfolioGrowth')}
-            </span>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-              <Database size={11} />
-              <span>{isHistoryLoaded ? (language === 'en' ? 'Official Market Archive' : 'مبتنی بر آرشیو رسمی بازار') : (language === 'en' ? 'Live Market Trend' : 'دقیق با نوسانات بازار')}</span>
+            </h3>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-[var(--brand-soft)] text-[var(--brand-primary)] border border-[var(--brand-border)] inline-flex items-center gap-1">
+              <Database size={12} />
+              <span>
+                {isHistoryLoaded ? t('chart.officialArchive') : t('chart.marketFluctuations')}
+              </span>
             </span>
           </div>
 
           {activeDisplay && (
-            <div className="mt-1 flex items-baseline gap-3">
-              <span className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">
-                {formatToman(activeDisplay.value, language)} <span className="text-xs text-slate-400 font-bold">{t('common.toman')}</span>
+            <div className="flex items-baseline gap-3 flex-wrap pt-0.5">
+              <span className="text-xl sm:text-2xl font-extrabold text-[color:var(--text-primary)] tabular-nums" dir="ltr">
+                {formatToman(activeDisplay.value, language)}{' '}
+                <span className="text-xs text-[color:var(--text-muted)] font-semibold">
+                  {t('common.toman')}
+                </span>
               </span>
-              <div className={`text-xs font-black flex items-center gap-1 ${
-                activeDisplay.profit >= 0 ? 'text-emerald-500' : 'text-rose-500'
-              }`}>
+              <div
+                className={`text-xs font-bold inline-flex items-center gap-1 tabular-nums ${
+                  activeDisplay.profit >= 0
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-rose-700 dark:text-rose-400'
+                }`}
+                dir="ltr"
+              >
                 {activeDisplay.profit >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                 <span>{formatPercent(activeDisplay.profitPct, language)}</span>
-                <span className="text-[10px] text-slate-400 font-normal">
-                  ({activeDisplay.profit >= 0 ? '+' : ''}{formatToman(activeDisplay.profit, language)} {language === 'en' ? 'T' : 'ت'})
+                <span className="text-xs text-[color:var(--text-muted)] font-medium">
+                  ({activeDisplay.profit >= 0 ? '+' : ''}
+                  {formatToman(activeDisplay.profit, language)} {language === 'en' ? 'T' : 'ت'})
                 </span>
               </div>
             </div>
           )}
 
           {activeDisplay && (
-            <div className="text-[11px] text-slate-400 font-bold mt-0.5 flex items-center gap-1.5">
-              <Calendar size={12} />
-              <span>{t('chart.date')}: {language === 'en' ? activeDisplay.dateStr : activeDisplay.jalaliStr}</span>
+            <div className="text-xs text-[color:var(--text-muted)] font-medium flex items-center gap-1.5 flex-wrap tabular-nums">
+              <Calendar size={13} />
+              <span>
+                {t('chart.date')}:{' '}
+                {language === 'en' ? activeDisplay.dateStr : activeDisplay.jalaliStr}
+              </span>
               <span>•</span>
-              <span>{t('chart.investedCapital')}: {formatToman(activeDisplay.cost, language)} {t('common.toman')}</span>
+              <span>
+                {t('chart.investedCapital')}: {formatToman(activeDisplay.cost, language)}{' '}
+                {t('common.toman')}
+              </span>
             </div>
           )}
         </div>
 
         {/* Timeframe selector */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 self-start sm:self-auto">
+        <div
+          role="group"
+          aria-label="Chart Timeframe"
+          className="flex items-center gap-1 p-1 bg-[var(--muted-surface)] rounded-xl border border-[color:var(--border-color)] self-start"
+        >
           {(['1M', '3M', '6M', '1Y', 'ALL'] as Timeframe[]).map((tf) => {
             const tfLabels: Record<Timeframe, string> = {
               '1M': t('chart.oneMonth'),
               '3M': t('chart.threeMonths'),
               '6M': t('chart.sixMonths'),
               '1Y': t('chart.oneYear'),
-              'ALL': t('chart.all'),
+              ALL: t('chart.all'),
             };
+            const isSelected = timeframe === tf;
             return (
               <button
                 key={tf}
                 type="button"
                 onClick={() => setTimeframe(tf)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
-                  timeframe === tf
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
-                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                className={`min-h-[34px] px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  isSelected
+                    ? 'bg-[var(--card-bg)] text-[var(--brand-primary)] shadow-sm border border-[color:var(--border-color)]'
+                    : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
                 }`}
               >
                 {tfLabels[tf]}
@@ -414,15 +453,15 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
         >
           <defs>
             <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={isProfit ? '#10b981' : '#3b82f6'} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={isProfit ? '#10b981' : '#3b82f6'} stopOpacity="0.0" />
+              <stop offset="0%" stopColor={strokeColor} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
-          {/* Grid lines */}
-          <line x1="20" y1="50" x2="780" y2="50" stroke="currentColor" strokeOpacity="0.05" strokeDasharray="4 4" />
-          <line x1="20" y1="110" x2="780" y2="110" stroke="currentColor" strokeOpacity="0.05" strokeDasharray="4 4" />
-          <line x1="20" y1="170" x2="780" y2="170" stroke="currentColor" strokeOpacity="0.05" strokeDasharray="4 4" />
+          {/* Subtle Grid lines */}
+          <line x1="20" y1="50" x2="780" y2="50" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="4 4" />
+          <line x1="20" y1="110" x2="780" y2="110" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="4 4" />
+          <line x1="20" y1="170" x2="780" y2="170" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="4 4" />
 
           {/* Area under curve */}
           {areaD && <path d={areaD} fill="url(#equityGrad)" />}
@@ -432,14 +471,14 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
             <path
               d={pathD}
               fill="none"
-              stroke={isProfit ? '#10b981' : '#3b82f6'}
-              strokeWidth="3"
+              stroke={strokeColor}
+              strokeWidth="2.75"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           )}
 
-          {/* Interactive invisible hover columns */}
+          {/* Interactive hover columns */}
           {activePoints.map((pt, idx) => (
             <rect
               key={idx}
@@ -448,47 +487,50 @@ export const PortfolioHistoryChart: React.FC<PortfolioHistoryChartProps> = ({
               width={20}
               height={220}
               fill="transparent"
-              className="cursor-pointer"
+              className="cursor-crosshair"
               onMouseEnter={() => setHoveredPoint(pt)}
               onTouchStart={() => setHoveredPoint(pt)}
             />
           ))}
 
           {/* Active point indicator */}
-          {hoveredPoint && (
-            <g>
-              {(() => {
-                const pt = activePoints.find(p => p.dateStr === hoveredPoint.dateStr);
-                if (!pt) return null;
-                return (
-                  <>
-                    <line
-                      x1={pt.x}
-                      y1={10}
-                      x2={pt.x}
-                      y2={210}
-                      stroke="#3b82f6"
-                      strokeWidth="1.5"
-                      strokeDasharray="3 3"
-                      strokeOpacity="0.7"
-                    />
-                    <circle
-                      cx={pt.x}
-                      cy={pt.y}
-                      r="6"
-                      fill="#3b82f6"
-                      stroke="#ffffff"
-                      strokeWidth="2.5"
-                      className="shadow-md"
-                    />
-                  </>
-                );
-              })()}
-            </g>
-          )}
+          {hoveredPoint &&
+            (() => {
+              const pt = activePoints.find((p) => p.dateStr === hoveredPoint.dateStr);
+              if (!pt) return null;
+              return (
+                <g>
+                  <line
+                    x1={pt.x}
+                    y1={10}
+                    x2={pt.x}
+                    y2={210}
+                    stroke="#f59e0b"
+                    strokeWidth="1.5"
+                    strokeDasharray="3 3"
+                    strokeOpacity="0.85"
+                  />
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r="5.5"
+                    fill="#f59e0b"
+                    stroke="#090d16"
+                    strokeWidth="2"
+                  />
+                </g>
+              );
+            })()}
         </svg>
       </div>
-
-    </div>
+    </section>
   );
 };
+
+function getAssetPriceAtDayOrTime(
+  sym: string,
+  pointTime: number,
+  fn: (symbol: string, time: number) => number
+): number {
+  return fn(sym, pointTime);
+}

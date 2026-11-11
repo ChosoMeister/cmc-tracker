@@ -56,6 +56,9 @@ const normalizePriceData = (incoming?: any): PriceData => {
   const goldPrices: Record<string, number> = { ...(incoming.goldPricesToman || {}) };
   if (!goldPrices.GOLD18 && incoming.gold18ToToman) goldPrices.GOLD18 = toNumber(incoming.gold18ToToman, gold);
   if (!goldPrices['18AYAR'] && goldPrices.GOLD18) goldPrices['18AYAR'] = goldPrices.GOLD18;
+  if (!goldPrices.GRAM_COIN && (goldPrices.GERAMI || goldPrices.SEK)) {
+    goldPrices.GRAM_COIN = goldPrices.GERAMI || goldPrices.SEK;
+  }
 
   return {
     usdToToman: fiatPrices.USD || usd,
@@ -66,6 +69,7 @@ const normalizePriceData = (incoming?: any): PriceData => {
     cryptoPricesToman: cryptoPrices,
     goldPricesToman: goldPrices,
     changes24h: incoming.changes24h || {},
+    sourceUsed: incoming.sourceUsed,
     fetchedAt: incoming.fetchedAt || Date.now(),
   };
 };

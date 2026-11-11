@@ -51,6 +51,7 @@ export interface PriceData {
   cryptoPricesToman: Record<string, number>;
   goldPricesToman: Record<string, number>;
   changes24h?: Record<string, number>;
+  sourceUsed?: string;
   fetchedAt: number;
 }
 
@@ -179,10 +180,22 @@ const goldAssets = [
   { symbol: 'BAHAR', name: 'سکه بهار آزادی', nameEn: 'Bahar Azadi Coin' },
   { symbol: 'NIM', name: 'نیم سکه', nameEn: 'Half Gold Coin' },
   { symbol: 'ROB', name: 'ربع سکه', nameEn: 'Quarter Gold Coin' },
-  { symbol: 'SEK', name: 'سکه گرمی', nameEn: 'Gram Gold Coin' },
+  { symbol: 'GRAM_COIN', name: 'سکه گرمی', nameEn: 'Gram Gold Coin' },
   { symbol: 'USD_XAU', name: 'انس طلا (دلار)', nameEn: 'World Gold Ounce' },
   { symbol: 'XAG', name: 'انس نقره (دلار)', nameEn: 'World Silver Ounce' },
 ];
+
+export const COIN_COUNT_SYMBOLS = new Set(['SEKKEH', 'EMAMI', 'BAHAR', 'NIM', 'ROB', 'GRAM_COIN', 'GERAMI']);
+
+export const isCoinAsset = (symbol: AssetSymbol): boolean => COIN_COUNT_SYMBOLS.has(symbol);
+
+export const resolveAssetSymbol = (tx: Pick<Transaction, 'assetSymbol' | 'buyPricePerUnit' | 'buyCurrency'>): AssetSymbol => {
+  if (tx.assetSymbol === 'SEK') {
+    const unitToman = tx.buyCurrency === 'USD' ? tx.buyPricePerUnit * 70000 : tx.buyPricePerUnit;
+    if (unitToman >= 500000) return 'GRAM_COIN';
+  }
+  return tx.assetSymbol;
+};
 
 export const allAssets = [
   ...goldAssets.map(asset => ({ ...asset, type: 'GOLD' as AssetType })),

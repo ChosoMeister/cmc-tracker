@@ -55,7 +55,7 @@ export const COIN_SPECS: CoinSpecification[] = [
     mintingFee: 5000,
   },
   {
-    symbol: 'SEK',
+    symbol: 'GRAM_COIN',
     name: 'سکه گرمی',
     weightGrams: 1.010,
     purity: 0.900,
@@ -101,6 +101,7 @@ export const calculateAllBubbles = (
   const marketPrices: Record<string, number> = {
     ...prices.goldPricesToman,
     GOLD18: prices.gold18ToToman,
+    GRAM_COIN: prices.goldPricesToman?.GRAM_COIN || prices.goldPricesToman?.GERAMI || prices.goldPricesToman?.SEK || 0,
   };
 
   return COIN_SPECS.map((spec) => {

@@ -1,113 +1,129 @@
-
-import React, { memo, useEffect, useRef, useState } from 'react';
-import { useSpring, animated, config } from '@react-spring/web';
+import React, { memo, useEffect, useRef } from 'react';
+import { formatToman, formatPercent } from '../utils/formatting';
 import { useTranslation } from '../contexts/LanguageContext';
 
 interface AnimatedNumberProps {
-    value: number;
-    formatter?: (value: number) => string;
-    duration?: number;
-    className?: string;
-    prefix?: string;
-    suffix?: string;
+  value: number;
+  formatter?: (value: number) => string;
+  duration?: number;
+  className?: string;
+  prefix?: string;
+  suffix?: string;
 }
 
 const AnimatedNumberComponent: React.FC<AnimatedNumberProps> = ({
-    value,
-    formatter,
-    duration = 500,
-    className = '',
-    prefix = '',
-    suffix = ''
+  value,
+  formatter,
+  duration = 420,
+  className = '',
+  prefix = '',
+  suffix = '',
 }) => {
-    const { language } = useTranslation();
-    const prevValue = useRef(value);
-    const [isFirstRender, setIsFirstRender] = useState(true);
+  const { language } = useTranslation();
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const prevValueRef = useRef<number>(value);
+  const isFirstMountRef = useRef<boolean>(true);
 
-    const defaultFormatter = (v: number) => {
-        const locale = language === 'en' ? 'en-US' : 'fa-IR';
-        return v.toLocaleString(locale);
+  const formatFn = (v: number) => {
+    if (formatter) return formatter(v);
+    return formatToman(v, language);
+  };
+
+  useEffect(() => {
+    const el = spanRef.current;
+    if (!el) return;
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (isFirstMountRef.current || prefersReducedMotion || duration <= 0) {
+      isFirstMountRef.current = false;
+      prevValueRef.current = value;
+      el.textContent = `${prefix}${formatFn(value)}${suffix}`;
+      return;
+    }
+
+    const from = prevValueRef.current;
+    const to = value;
+    prevValueRef.current = value;
+
+    if (from === to) {
+      el.textContent = `${prefix}${formatFn(to)}${suffix}`;
+      return;
+    }
+
+    let rafId = 0;
+    const startTime = performance.now();
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
+      const current = from + (to - from) * eased;
+      el.textContent = `${prefix}${formatFn(current)}${suffix}`;
+      if (t < 1) {
+        rafId = requestAnimationFrame(tick);
+      }
     };
 
-    const activeFormatter = formatter || defaultFormatter;
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [value, language, prefix, suffix, duration]);
 
-    useEffect(() => {
-        if (isFirstRender) {
-            setIsFirstRender(false);
-        }
-        prevValue.current = value;
-    }, [value, isFirstRender]);
-
-    const { number } = useSpring({
-        from: { number: isFirstRender ? value : prevValue.current },
-        to: { number: value },
-        config: { ...config.gentle, duration },
-    });
-
-    return (
-        <animated.span className={className} dir="ltr">
-            {number.to((n) => `${prefix}${activeFormatter(Math.floor(n))}${suffix}`)}
-        </animated.span>
-    );
+  return (
+    <span ref={spanRef} className={`tabular-nums ${className}`} dir="ltr">
+      {`${prefix}${formatFn(value)}${suffix}`}
+    </span>
+  );
 };
 
 export const AnimatedNumber = memo(AnimatedNumberComponent);
 
-// Animated Toman formatter
 interface AnimatedTomanProps {
-    value: number;
-    className?: string;
-    showSuffix?: boolean;
+  value: number;
+  className?: string;
+  showSuffix?: boolean;
 }
 
 const AnimatedTomanComponent: React.FC<AnimatedTomanProps> = ({
-    value,
-    className = '',
-    showSuffix = true
+  value,
+  className = '',
+  showSuffix = true,
 }) => {
-    const { language, t } = useTranslation();
-    const locale = language === 'en' ? 'en-US' : 'fa-IR';
+  const { language, t } = useTranslation();
 
-    return (
-        <AnimatedNumber
-            value={value}
-            formatter={(v) => new Intl.NumberFormat(locale).format(Math.round(v))}
-            className={className}
-            suffix={showSuffix ? ` ${t('common.toman')}` : ''}
-        />
-    );
+  return (
+    <AnimatedNumber
+      value={value}
+      formatter={(v) => formatToman(v, language)}
+      className={className}
+      suffix={showSuffix ? ` ${t('common.toman')}` : ''}
+    />
+  );
 };
 
 export const AnimatedToman = memo(AnimatedTomanComponent);
 
-// Animated Percent formatter
 interface AnimatedPercentProps {
-    value: number;
-    className?: string;
-    showSign?: boolean;
+  value: number;
+  className?: string;
 }
 
 const AnimatedPercentComponent: React.FC<AnimatedPercentProps> = ({
-    value,
-    className = '',
-    showSign = true
+  value,
+  className = '',
 }) => {
-    const { language } = useTranslation();
-    const sign = showSign && value > 0 ? '+' : '';
-    const locale = language === 'en' ? 'en-US' : 'fa-IR';
-    const percentSymbol = language === 'en' ? '%' : '٪';
+  const { language } = useTranslation();
 
-    return (
-        <AnimatedNumber
-            value={value}
-            formatter={(v) => `${sign}${new Intl.NumberFormat(locale, {
-                maximumFractionDigits: 2,
-                minimumFractionDigits: 2
-            }).format(v)}${percentSymbol}`}
-            className={className}
-        />
-    );
+  return (
+    <AnimatedNumber
+      value={value}
+      formatter={(v) => formatPercent(v, language)}
+      className={className}
+    />
+  );
 };
 
 export const AnimatedPercent = memo(AnimatedPercentComponent);
-

@@ -1,7 +1,12 @@
-
 import React, { useEffect, useState, memo } from 'react';
-import { AssetSummary, getAssetDetail } from '../types';
-import { formatToman, formatPercent, formatNumber, getAssetFallbackIcon, getAssetIconUrl } from '../utils/formatting';
+import { AssetSummary, getAssetDetail, isCoinAsset } from '../types';
+import {
+  formatToman,
+  formatPercent,
+  formatNumber,
+  getAssetFallbackIcon,
+  getAssetIconUrl,
+} from '../utils/formatting';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useTranslation } from '../contexts/LanguageContext';
 
@@ -11,10 +16,9 @@ interface AssetRowProps {
 }
 
 const AssetRowComponent: React.FC<AssetRowProps> = ({ asset, onClick }) => {
-  const { t, language } = useTranslation();
+  const { language } = useTranslation();
   const isProfit = asset.pnlToman >= 0;
-  const [iconUrl, setIconUrl] = useState(getAssetIconUrl(asset.symbol));
-  const mutedText = 'text-[color:var(--text-muted)]';
+  const [iconUrl, setIconUrl] = useState(() => getAssetIconUrl(asset.symbol));
   const assetDetail = getAssetDetail(asset.symbol, language);
   const tomanSuffix = language === 'en' ? 'T' : 'ت';
 
@@ -22,69 +26,98 @@ const AssetRowComponent: React.FC<AssetRowProps> = ({ asset, onClick }) => {
     setIconUrl(getAssetIconUrl(asset.symbol));
   }, [asset.symbol]);
 
+  const unitLabel = (() => {
+    if (isCoinAsset(asset.symbol)) {
+      return language === 'en' ? 'pcs' : 'عدد';
+    }
+    if (asset.symbol === 'ABSHODEH') {
+      return language === 'en' ? 'mithqal' : 'مثقال';
+    }
+    if (asset.symbol === 'USD_XAU' || asset.symbol === 'XAG') {
+      return language === 'en' ? 'oz' : 'انس';
+    }
+    if (asset.type === 'GOLD') {
+      return language === 'en' ? 'g' : 'گرم';
+    }
+    return asset.symbol;
+  })();
+
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className="stagger-item hover-lift spring-smooth bg-[var(--card-bg)] text-[color:var(--text-primary)] p-5 flex items-center justify-between border-b border-[color:var(--border-color)] active:bg-[color:var(--muted-surface)] cursor-pointer group"
+      className="w-full text-start spring-smooth bg-[var(--card-bg)] hover:bg-[var(--muted-surface)] text-[color:var(--text-primary)] p-4 sm:p-5 flex items-center justify-between gap-3 border-b border-[color:var(--border-color)] last:border-b-0 cursor-pointer group"
     >
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-[color:var(--muted-surface)] p-1.5 border border-[color:var(--border-color)] flex items-center justify-center overflow-hidden shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+      <div className="flex items-center gap-3.5 min-w-0">
+        <div className="w-11 h-11 rounded-xl bg-[var(--muted-surface)] p-1.5 border border-[color:var(--border-color)] flex items-center justify-center overflow-hidden shrink-0">
           <img
             src={iconUrl}
             alt={asset.symbol}
-            className="w-full h-full object-contain"
+            width={32}
+            height={32}
+            decoding="async"
             loading="lazy"
+            className="w-full h-full object-contain"
             onError={() => setIconUrl(getAssetFallbackIcon(asset.symbol))}
           />
         </div>
-        <div>
-          <div className="font-black text-[color:var(--text-primary)] text-sm flex items-center gap-1.5">
-            {assetDetail.name}
-            <span className="text-[10px] bg-[color:var(--pill-bg)] text-[color:var(--text-muted)] px-1.5 py-0.5 rounded-md font-bold">{asset.symbol}</span>
+
+        <div className="min-w-0">
+          <div className="font-bold text-[color:var(--text-primary)] text-sm flex items-center gap-2 flex-wrap">
+            <span className="truncate">{assetDetail.name}</span>
+            <span className="text-xs bg-[var(--pill-bg)] text-[color:var(--text-muted)] px-1.5 py-0.5 rounded-md font-semibold">
+              {asset.symbol}
+            </span>
           </div>
-          <div className={`text-[11px] ${mutedText} mt-1 font-bold flex items-center gap-1`} dir="ltr">
-            <span>{formatNumber(asset.totalQuantity, 3, language)}</span>
-            <span className="opacity-60">{asset.type === 'GOLD' ? (language === 'en' ? 'g' : 'گرم') : asset.symbol}</span>
-          </div>
-          {/* Live unit price and 24h change */}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <div className="text-[11px] text-blue-600 dark:text-blue-400 font-black flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
-              <span>{language === 'en' ? 'Unit:' : 'واحد:'}</span>
-              <span dir="ltr">{formatToman(asset.currentPriceToman, language)} {tomanSuffix}</span>
-            </div>
+
+          <div className="text-xs text-[color:var(--text-muted)] mt-1 font-semibold flex items-center gap-2 flex-wrap tabular-nums">
+            <span dir="ltr">
+              {formatNumber(asset.totalQuantity, 4, language)} {unitLabel}
+            </span>
+            <span>•</span>
+            <span dir="ltr">
+              {formatToman(asset.currentPriceToman, language)} {tomanSuffix}
+            </span>
             {typeof asset.change24h === 'number' && (
               <span
                 dir="ltr"
-                className={`text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 ring-1 transition-colors ${
+                className={`text-xs font-bold px-1.5 py-0.5 rounded-md tabular-nums ${
                   asset.change24h >= 0
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20'
-                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-rose-500/20'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
                 }`}
-                title={language === 'en' ? '24h Market Change' : 'تغییرات ۲۴ ساعت گذشته بازار'}
               >
-                {asset.change24h >= 0 ? '+' : ''}{formatPercent(asset.change24h, language)}
+                {formatPercent(asset.change24h, language)}
               </span>
             )}
           </div>
         </div>
       </div>
 
-      <div className="text-left flex flex-col items-end">
-        <div className="font-black text-[color:var(--text-primary)] text-sm">{formatToman(asset.currentValueToman, language)} {tomanSuffix}</div>
-        <div className={`text-[10px] flex items-center gap-1 mt-1.5 font-black px-2 py-1 rounded-lg ${isProfit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`} dir="ltr">
-          {isProfit ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+      <div className="text-end flex flex-col items-end shrink-0 tabular-nums">
+        <div className="font-bold text-[color:var(--text-primary)] text-sm" dir="ltr">
+          {formatToman(asset.currentValueToman, language)} {tomanSuffix}
+        </div>
+        <div
+          className={`text-xs inline-flex items-center gap-1 mt-1 font-bold px-2 py-0.5 rounded-lg ${
+            isProfit
+              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+              : 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
+          }`}
+          dir="ltr"
+        >
+          {isProfit ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           <span>{formatPercent(asset.pnlPercent, language)}</span>
         </div>
-        <div className={`text-[9px] ${mutedText} mt-1 font-bold`} dir="ltr">
-          {language === 'en' ? 'PnL: ' : 'سود/ضرر: '}{formatToman(asset.pnlToman, language)} {tomanSuffix}
+        <div className="text-xs text-[color:var(--text-muted)] mt-0.5 font-medium" dir="ltr">
+          {isProfit ? '+' : '-'}
+          {formatToman(Math.abs(asset.pnlToman), language)} {tomanSuffix}
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 
-// Memoize to prevent unnecessary re-renders when props haven't changed
 export const AssetRow = memo(AssetRowComponent, (prevProps, nextProps) => {
   return (
     prevProps.asset.symbol === nextProps.asset.symbol &&
