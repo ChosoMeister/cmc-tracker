@@ -79,7 +79,7 @@ export const fetchLivePrices = async (): Promise<{ data: PriceData, sources: {ti
   try {
     const response = await API.refreshLivePrices();
     const normalized = normalizePriceData(response?.data);
-    await API.savePrices(normalized);
+    localStorage.setItem('gemini_fallback_prices', JSON.stringify(normalized));
     return {
       data: normalized,
       sources: response?.sources || [],

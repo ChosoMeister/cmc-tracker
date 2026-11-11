@@ -70,9 +70,9 @@ const seedAdmin = () => {
 };
 seedAdmin();
 
-const withTimeout = async (url: string, options: RequestInit = {}) => {
+const withTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = TIMEOUT_MS) => {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
@@ -250,14 +250,19 @@ export const API = {
 
   getPrices: async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/prices`);
-      if (res.ok) return res.json();
+      const res = await withTimeout(`${BASE_URL}/api/prices`, {}, 15000);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) localStorage.setItem(LOCAL_PRICES_KEY, JSON.stringify(data));
+        return data;
+      }
     } catch (e) { }
     return JSON.parse(localStorage.getItem(LOCAL_PRICES_KEY) || 'null');
   },
 
-  refreshLivePrices: async () => {
-    const res = await withTimeout(`${BASE_URL}/api/prices/refresh`);
+  refreshLivePrices: async (force = false) => {
+    const query = force ? '?force=true' : '';
+    const res = await withTimeout(`${BASE_URL}/api/prices/refresh${query}`, {}, 25000);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'دریافت قیمت‌های جدید ناموفق بود');
     return data;

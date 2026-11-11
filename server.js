@@ -157,18 +157,309 @@ const normalizeNumber = (value = '') => {
     return Number.isFinite(num) ? num : 0;
 };
 
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 10000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
+const isPricePayloadHealthy = (data) => {
+    if (!data || typeof data !== 'object') return false;
+    const usd = Number(data.usdToToman) || 0;
+    const gold18 = Number(data.gold18ToToman) || 0;
+    const fiatCount = Object.keys(data.fiatPricesToman || {}).length;
+    const goldCount = Object.keys(data.goldPricesToman || {}).length;
+    // Reject default 70000/4700000 placeholders or zeroed responses
+    if (usd <= 0 || gold18 <= 0) return false;
+    if (usd === FALLBACK_PRICES.usdToToman && gold18 === FALLBACK_PRICES.gold18ToToman && fiatCount <= 2) return false;
+    return fiatCount >= 1 && goldCount >= 1;
+};
+
 const fetchBrsApiData = async () => {
-    const res = await fetch(`https://Api.BrsApi.ir/Market/Gold_Currency.php?key=${BRS_API_KEY}`, {
+    const res = await fetchWithTimeout(`https://Api.BrsApi.ir/Market/Gold_Currency.php?key=${BRS_API_KEY}`, {
         headers: {
             'User-Agent': BRS_USER_AGENT,
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'fa-IR,fa;q=0.9,en-US;q=0.8,en;q=0.7',
             'Referer': 'https://brsapi.ir/'
         }
-    });
+    }, 10000);
     if (!res.ok) throw new Error(`BrsApi HTTP error: ${res.status}`);
     const json = await res.json();
+    const usdEntry = Array.isArray(json?.currency) ? json.currency.find(c => c.symbol?.toUpperCase() === 'USD') : null;
+    const goldEntry = Array.isArray(json?.gold) ? json.gold.find(g => g.symbol === 'IR_GOLD_18K') : null;
+    if (!usdEntry || Number(usdEntry.price) <= 0 || !goldEntry || Number(goldEntry.price) <= 0) {
+        throw new Error('BrsApi returned empty or zero prices (upstream outage)');
+    }
     return json;
+};
+
+const TGJU_FIAT_MAPPING = {
+    USD: { key: 'price_dollar_rl', multiplier: 1 },
+    EUR: { key: 'price_eur', multiplier: 1 },
+    AED: { key: 'price_aed', multiplier: 1 },
+    TRY: { key: 'price_try', multiplier: 1 },
+    GBP: { key: 'price_gbp', multiplier: 1 },
+    CNY: { key: 'price_cny', multiplier: 1 },
+    CAD: { key: 'price_cad', multiplier: 1 },
+    AUD: { key: 'price_aud', multiplier: 1 },
+    RUB: { key: 'price_rub', multiplier: 1 },
+    IQD: { key: 'price_iqd', multiplier: 100 }, // 100 Iraqi Dinar
+    MYR: { key: 'price_myr', multiplier: 1 },
+    GEL: { key: 'price_gel', multiplier: 1 },
+    AZN: { key: 'price_azn', multiplier: 1 },
+    AMD: { key: 'price_amd', multiplier: 100 }, // 100 Armenian Dram
+    THB: { key: 'price_thb', multiplier: 1 },
+    OMR: { key: 'price_omr', multiplier: 1 },
+    INR: { key: 'price_inr', multiplier: 1 },
+    PKR: { key: 'price_pkr', multiplier: 1 },
+    JPY: { key: 'price_jpy', multiplier: 1 },   // Already quoted per 100 Yen in TGJU
+    SAR: { key: 'price_sar', multiplier: 1 },
+    AFN: { key: 'price_afn', multiplier: 1 },
+    SEK: { key: 'price_sek', multiplier: 1 },
+    CHF: { key: 'price_chf', multiplier: 1 },
+    QAR: { key: 'price_qar', multiplier: 1 },
+    KRW: { key: 'price_krw', multiplier: 100 }, // 100 South Korean Won
+    NOK: { key: 'price_nok', multiplier: 1 },
+    NZD: { key: 'price_nzd', multiplier: 1 },
+    SGD: { key: 'price_sgd', multiplier: 1 },
+    HKD: { key: 'price_hkd', multiplier: 1 },
+    KWD: { key: 'price_kwd', multiplier: 1 },
+    DKK: { key: 'price_dkk', multiplier: 1 },
+    BHD: { key: 'price_bhd', multiplier: 1 },
+    TJS: { key: 'price_tjs', multiplier: 1 },
+    TMT: { key: 'price_tmt', multiplier: 1 },
+    KGS: { key: 'price_kgs', multiplier: 1 },
+    SYP: { key: 'price_syp', multiplier: 1 },   // Quoted per 100 SYP in TGJU
+    BRL: { key: 'price_brl', multiplier: 1 },
+    ARS: { key: 'price_ars', multiplier: 1 },
+};
+
+const SUPPORTED_CRYPTO_SYMBOLS = [
+    'BTC', 'ETH', 'ETC', 'XRP', 'BNB', 'SHIB', 'ADA', 'DOGE', 'TON', 'NOT',
+    'SOL', 'TRX', 'CAKE', 'AVAX', 'DOT', 'LINK', 'LTC', 'PEPE', 'UNI', 'XLM',
+    'FIL', 'NEAR', 'EOS', 'AAVE', 'GRT', 'XTZ', 'FLOW', 'SAND', 'MANA', 'AXS',
+    'CHZ', 'ENJ', 'ZEC', 'GALA', 'LRC', 'BAT', 'ONE', 'ZEN', 'CVC', 'STORJ'
+];
+
+const TGJU_CRYPTO_SLUGS = {
+    BTC: 'crypto-bitcoin',
+    ETH: 'crypto-ethereum',
+    ETC: 'crypto-ethereum-classic',
+    XRP: 'crypto-ripple',
+    BNB: 'crypto-bnb',
+    SHIB: 'crypto-shiba-inu',
+    ADA: 'crypto-cardano',
+    DOGE: 'crypto-dogecoin',
+    TON: 'crypto-toncoin',
+    SOL: 'crypto-solana',
+    TRX: 'crypto-tron',
+    CAKE: 'crypto-pancakeswap',
+    AVAX: 'crypto-avalanche',
+    DOT: 'crypto-polkadot',
+    LINK: 'crypto-chainlink',
+    LTC: 'crypto-litecoin',
+    UNI: 'crypto-uniswap',
+    XLM: 'crypto-stellar',
+    FIL: 'crypto-filecoin',
+    EOS: 'crypto-eos',
+    AAVE: 'crypto-aave',
+    XTZ: 'crypto-tezos',
+    SAND: 'crypto-sandbox',
+    MANA: 'crypto-decentraland',
+    AXS: 'crypto-axie-infinity',
+    CHZ: 'crypto-chiliz',
+    ENJ: 'crypto-enjin-coin',
+    ZEC: 'crypto-zcash',
+    BAT: 'crypto-basic-attention-token',
+};
+
+const parseTgjuSignedChange = (entry) => {
+    if (!entry) return 0;
+    const rawPct = Number(entry.dp) || 0;
+    if (rawPct === 0) return 0;
+    return entry.dt === 'low' ? -Math.abs(rawPct) : Math.abs(rawPct);
+};
+
+const fetchTgjuAndBinanceFallback = async () => {
+    const tgjuRes = await fetchWithTimeout('https://call1.tgju.org/ajax.json', {
+        headers: {
+            'User-Agent': BRS_USER_AGENT,
+            'Accept': 'application/json, text/plain, */*',
+            'Referer': 'https://www.tgju.org/'
+        }
+    }, 12000);
+
+    if (!tgjuRes.ok) {
+        throw new Error(`TGJU Live HTTP error: ${tgjuRes.status}`);
+    }
+
+    const tgjuJson = await tgjuRes.json();
+    const cur = tgjuJson?.current;
+    if (!cur || typeof cur !== 'object') {
+        throw new Error('TGJU payload missing current object');
+    }
+
+    const fiatPrices = {};
+    const goldPrices = {};
+    const cryptoPrices = {};
+    const changes24h = {};
+
+    // 1. Extract Fiat Currencies (TGJU quotes Rials -> divide by 10 for Toman)
+    Object.entries(TGJU_FIAT_MAPPING).forEach(([sym, cfg]) => {
+        const entry = cur[cfg.key];
+        if (!entry?.p) return;
+        const rial = normalizeNumber(entry.p);
+        if (rial > 0) {
+            const toman = Math.round((rial / 10) * cfg.multiplier);
+            fiatPrices[sym] = toman;
+            changes24h[sym] = parseTgjuSignedChange(entry);
+        }
+    });
+
+    const usdRate = fiatPrices.USD || 0;
+    const eurRate = fiatPrices.EUR || 0;
+
+    if (usdRate <= 0) {
+        throw new Error('TGJU returned zero USD rate');
+    }
+
+    // Tether in Toman from TGJU if available, else fallback to USD
+    let usdtRate = usdRate;
+    if (cur['crypto-tether-irr']?.p) {
+        const tetherRial = normalizeNumber(cur['crypto-tether-irr'].p);
+        if (tetherRial > 0) {
+            usdtRate = Math.round(tetherRial / 10);
+            cryptoPrices.USDT = usdtRate;
+            changes24h.USDT = parseTgjuSignedChange(cur['crypto-tether-irr']);
+        }
+    }
+    if (!cryptoPrices.USDT) {
+        cryptoPrices.USDT = usdRate;
+        changes24h.USDT = changes24h.USD || 0;
+    }
+
+    // 2. Extract Gold & Coins
+    let gold18Rate = 0;
+    let worldGoldUsd = 0;
+
+    const mapGoldItem = (tgjuKey, symbols) => {
+        const entry = cur[tgjuKey];
+        if (!entry?.p) return 0;
+        const rial = normalizeNumber(entry.p);
+        if (rial <= 0) return 0;
+        const toman = Math.round(rial / 10);
+        const chg = parseTgjuSignedChange(entry);
+        symbols.forEach(s => {
+            goldPrices[s] = toman;
+            // Avoid overwriting SEK fiat change in changes24h if Swedish Krona exists, except gold symbols
+            if (s !== 'SEK' || changes24h.SEK === undefined) {
+                changes24h[s] = chg;
+            }
+        });
+        return toman;
+    };
+
+    gold18Rate = mapGoldItem('geram18', ['GOLD18', '18AYAR', 'IR_GOLD_18K']);
+    mapGoldItem('geram24', ['GOLD24', 'IR_GOLD_24K']);
+    mapGoldItem('mesghal', ['ABSHODEH', 'IR_GOLD_MELTED']);
+    mapGoldItem('sekee', ['SEKKEH', 'EMAMI', 'IR_COIN_EMAMI']);
+    mapGoldItem('sekeb', ['BAHAR', 'IR_COIN_BAHAR']);
+    mapGoldItem('nim', ['NIM', 'IR_COIN_HALF']);
+    mapGoldItem('rob', ['ROB', 'IR_COIN_QUARTER']);
+    mapGoldItem('gerami', ['SEK', 'GERAMI', 'IR_COIN_1G']);
+
+    if (cur.gerami) {
+        changes24h['IR_COIN_1G'] = parseTgjuSignedChange(cur.gerami);
+        changes24h['GERAMI'] = parseTgjuSignedChange(cur.gerami);
+    }
+
+    if (cur.ons?.p) {
+        const onsUsd = normalizeNumber(cur.ons.p);
+        if (onsUsd > 0) {
+            worldGoldUsd = onsUsd;
+            const onsChg = parseTgjuSignedChange(cur.ons);
+            goldPrices.USD_XAU = Math.round(onsUsd * usdRate);
+            changes24h.XAUUSD = onsChg;
+            changes24h.USD_XAU = onsChg;
+        }
+    }
+
+    if (cur.silver?.p) {
+        const xagUsd = normalizeNumber(cur.silver.p);
+        if (xagUsd > 0) {
+            goldPrices.XAG = Math.round(xagUsd * usdRate);
+            changes24h.XAG = parseTgjuSignedChange(cur.silver);
+        }
+    }
+
+    if (gold18Rate <= 0) {
+        throw new Error('TGJU returned zero Gold 18K rate');
+    }
+
+    // 3. Extract Cryptocurrencies (Primary: Binance 24hr Ticker, Secondary: TGJU crypto fields)
+    let binanceLoaded = false;
+    try {
+        const binRes = await fetchWithTimeout('https://api.binance.com/api/v3/ticker/24hr', {
+            headers: { 'User-Agent': BRS_USER_AGENT }
+        }, 8000);
+
+        if (binRes.ok) {
+            const tickers = await binRes.json();
+            if (Array.isArray(tickers)) {
+                const tickerMap = new Map(tickers.map(t => [t.symbol, t]));
+                SUPPORTED_CRYPTO_SYMBOLS.forEach(sym => {
+                    const item = tickerMap.get(`${sym}USDT`);
+                    if (!item) return;
+                    const usdPrice = Number(item.lastPrice) || 0;
+                    const chg = Number(item.priceChangePercent) || 0;
+                    if (usdPrice > 0) {
+                        const rawToman = usdPrice * usdtRate;
+                        cryptoPrices[sym] = rawToman >= 100 ? Math.round(rawToman) : Number(rawToman.toFixed(4));
+                        changes24h[sym] = Number(chg.toFixed(2));
+                    }
+                });
+                binanceLoaded = Object.keys(cryptoPrices).length > 3;
+            }
+        }
+    } catch (binErr) {
+        console.warn('[PriceService] Binance 24hr fallback failed, using TGJU crypto rates:', binErr.message);
+    }
+
+    // Fill any missing cryptocurrencies from TGJU
+    Object.entries(TGJU_CRYPTO_SLUGS).forEach(([sym, slug]) => {
+        if (cryptoPrices[sym]) return;
+        const entry = cur[slug];
+        if (!entry?.p) return;
+        const usdPrice = normalizeNumber(entry.p);
+        if (usdPrice > 0) {
+            const rawToman = usdPrice * usdtRate;
+            cryptoPrices[sym] = rawToman >= 100 ? Math.round(rawToman) : Number(rawToman.toFixed(4));
+            changes24h[sym] = parseTgjuSignedChange(entry);
+        }
+    });
+
+    return {
+        data: {
+            usdToToman: usdRate,
+            eurToToman: eurRate,
+            gold18ToToman: gold18Rate,
+            worldGoldUsd,
+            fiatPricesToman: fiatPrices,
+            cryptoPricesToman: cryptoPrices,
+            goldPricesToman: goldPrices,
+            changes24h,
+            fetchedAt: Date.now()
+        },
+        sources: [
+            { title: 'شبکه اطلاع‌رسانی طلا، سکه و ارز (TGJU Live)', uri: 'https://www.tgju.org' },
+            ...(binanceLoaded ? [{ title: 'نرخ جهانی رمزارزها (Binance Spot)', uri: 'https://www.binance.com' }] : [])
+        ]
+    };
 };
 
 const processBrsMarketRates = (brsData) => {
@@ -599,7 +890,75 @@ app.post('/api/transactions/delete', async (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/prices', (req, res) => {
+const refreshMarketPricesOrchestrated = async () => {
+    let priceData = null;
+    let sources = [];
+    let sourceUsed = 'BrsApi.ir';
+
+    // Tier 1: BrsApi.ir
+    try {
+        const brsRaw = await fetchBrsApiData();
+        const candidate = processBrsMarketRates(brsRaw);
+        if (!isPricePayloadHealthy(candidate)) {
+            throw new Error('Processed BrsApi payload failed health check');
+        }
+        priceData = candidate;
+        sources = [{ title: 'وب‌سرویس جامع طلا، ارز و کریپتو (BrsApi)', uri: 'https://brsapi.ir' }];
+    } catch (brsErr) {
+        console.warn('[PriceService] Tier 1 (BrsApi) failed:', brsErr.message);
+
+        // Tier 2: TGJU Live + Binance 24hr Ticker
+        try {
+            const fallbackResult = await fetchTgjuAndBinanceFallback();
+            if (!isPricePayloadHealthy(fallbackResult.data)) {
+                throw new Error('TGJU fallback payload failed health check');
+            }
+            priceData = fallbackResult.data;
+            sources = fallbackResult.sources;
+            sourceUsed = 'TGJU Live + Binance (Fallback)';
+            console.log(`[PriceService] Recovered live rates via Tier 2 (${sourceUsed}). USD=${priceData.usdToToman}, GOLD18=${priceData.gold18ToToman}`);
+        } catch (fallbackErr) {
+            console.error('[PriceService] Tier 2 (TGJU/Binance) failed:', fallbackErr.message);
+
+            // Tier 3: Healthy local cache (without resetting fetchedAt, so retry stays open)
+            if (isPricePayloadHealthy(pricesCache)) {
+                priceData = pricesCache;
+                sourceUsed = 'Local Cache (Stale Fallback)';
+                sources = [{ title: 'کش محلی سرور (آخرین نرخ معتبر)', uri: '#' }];
+            } else {
+                throw fallbackErr;
+            }
+        }
+    }
+
+    if (isPricePayloadHealthy(priceData) && sourceUsed !== 'Local Cache (Stale Fallback)') {
+        pricesCache = priceData;
+        try {
+            await fs.promises.writeFile(PRICES_FILE, JSON.stringify(priceData, null, 2));
+            recordDailySnapshot(DATA_DIR, priceData);
+        } catch (err) {
+            console.error('Error persisting refreshed prices:', err);
+        }
+    }
+
+    return { priceData, sources, sourceUsed };
+};
+
+// Auto-heal corrupted/placeholder cache on server startup
+if (!isPricePayloadHealthy(pricesCache)) {
+    refreshMarketPricesOrchestrated()
+        .then(({ sourceUsed }) => console.log(`[PriceService] Initial startup price warm-up succeeded via ${sourceUsed}`))
+        .catch((err) => console.warn('[PriceService] Initial startup price warm-up failed:', err.message));
+}
+
+app.get('/api/prices', async (req, res) => {
+    if (!isPricePayloadHealthy(pricesCache)) {
+        try {
+            await refreshMarketPricesOrchestrated();
+        } catch (e) {
+            // Serve whatever cache exists if all live sources are unreachable
+        }
+    }
     res.json(pricesCache);
 });
 
@@ -607,7 +966,12 @@ app.get('/api/prices/refresh', async (req, res) => {
     try {
         const now = Date.now();
         const force = req.query.force === 'true';
-        if (!force && pricesCache?.fetchedAt && now - pricesCache.fetchedAt < CACHE_TTL_MS) {
+        if (
+            !force &&
+            isPricePayloadHealthy(pricesCache) &&
+            pricesCache?.fetchedAt &&
+            now - pricesCache.fetchedAt < CACHE_TTL_MS
+        ) {
             return res.json({
                 success: true,
                 data: pricesCache,
@@ -617,48 +981,28 @@ app.get('/api/prices/refresh', async (req, res) => {
             });
         }
 
-        let priceData;
-        let sourceUsed = 'BrsApi.ir';
-
-        try {
-            const brsRaw = await fetchBrsApiData();
-            priceData = processBrsMarketRates(brsRaw);
-        } catch (brsErr) {
-            console.error('[PriceService] BrsApi fetch error:', brsErr.message);
-            // Fallback to cache if available
-            if (pricesCache) {
-                priceData = { ...pricesCache, fetchedAt: Date.now() };
-                sourceUsed = 'Local Cache (Fallback)';
-            } else {
-                throw brsErr;
-            }
-        }
-
-        pricesCache = priceData;
-        try {
-            await fs.promises.writeFile(PRICES_FILE, JSON.stringify(priceData, null, 2));
-        } catch (err) {
-            console.error('Error persisting refreshed prices:', err);
-        }
+        const { priceData, sources, sourceUsed } = await refreshMarketPricesOrchestrated();
 
         res.json({
             success: true,
             data: priceData,
-            sources: [
-                { title: 'وب‌سرویس جامع طلا، ارز و کریپتو (BrsApi)', uri: 'https://brsapi.ir' },
-            ],
-            nextAllowedAt: priceData.fetchedAt + CACHE_TTL_MS,
+            sourceUsed,
+            sources,
+            nextAllowedAt: (sourceUsed === 'Local Cache (Stale Fallback)' ? now : priceData.fetchedAt) + CACHE_TTL_MS,
         });
     } catch (error) {
         console.error('Error refreshing prices:', error);
-        res.status(500).json({ message: 'بروزرسانی قیمت‌ها با خطا مواجه شد' });
+        res.status(500).json({ message: 'بروزرسانی قیمت‌ها از تمامی منابع با خطا مواجه شد' });
     }
 });
 
 app.post('/api/prices', async (req, res) => {
+    if (!isPricePayloadHealthy(req.body)) {
+        return res.json({ success: false, skipped: true, reason: 'Unhealthy or placeholder price payload ignored' });
+    }
     pricesCache = req.body;
     try {
-        await fs.promises.writeFile(PRICES_FILE, JSON.stringify(req.body));
+        await fs.promises.writeFile(PRICES_FILE, JSON.stringify(req.body, null, 2));
         recordDailySnapshot(DATA_DIR, req.body);
     } catch (e) {
         console.error('Error saving prices:', e);
