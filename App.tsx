@@ -728,7 +728,7 @@ export default function App() {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Main Column (8 cols on desktop) */}
-                <div className="lg:col-span-8 space-y-6">
+                <div className="lg:col-span-8 min-w-0 space-y-6">
                   <SummaryCard
                     summary={portfolioSummary}
                     isRefreshing={isPriceUpdating}
@@ -858,7 +858,7 @@ export default function App() {
                 </div>
 
                 {/* Sidebar Column (4 cols on desktop) */}
-                <div className="lg:col-span-4 space-y-6">
+                <div className="lg:col-span-4 min-w-0 space-y-6">
                   <AllocationChart summary={portfolioSummary} />
 
                   {/* Accurate Best & Worst Performers (by PnL %) */}
