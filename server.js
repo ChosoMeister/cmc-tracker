@@ -608,7 +608,14 @@ app.use(express.static(path.join(__dirname, 'dist'), {
     maxAge: '1y',
     immutable: true,
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) {
+        if (
+            filePath.endsWith('.html') ||
+            filePath.endsWith('manifest.json') ||
+            filePath.endsWith('apple-touch-icon.png') ||
+            filePath.endsWith('pwa-192x192.png') ||
+            filePath.endsWith('pwa-512x512.png') ||
+            filePath.endsWith('favicon.png')
+        ) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
     }
