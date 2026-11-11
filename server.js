@@ -371,11 +371,13 @@ const fetchTgjuAndBinanceFallback = async () => {
     mapGoldItem('sekeb', ['BAHAR', 'IR_COIN_BAHAR']);
     mapGoldItem('nim', ['NIM', 'IR_COIN_HALF']);
     mapGoldItem('rob', ['ROB', 'IR_COIN_QUARTER']);
-    mapGoldItem('gerami', ['SEK', 'GERAMI', 'IR_COIN_1G']);
+    mapGoldItem('gerami', ['GRAM_COIN', 'SEK', 'GERAMI', 'IR_COIN_1G']);
 
     if (cur.gerami) {
-        changes24h['IR_COIN_1G'] = parseTgjuSignedChange(cur.gerami);
-        changes24h['GERAMI'] = parseTgjuSignedChange(cur.gerami);
+        const geramiChg = parseTgjuSignedChange(cur.gerami);
+        changes24h['IR_COIN_1G'] = geramiChg;
+        changes24h['GERAMI'] = geramiChg;
+        changes24h['GRAM_COIN'] = geramiChg;
     }
 
     if (cur.ons?.p) {
@@ -453,6 +455,7 @@ const fetchTgjuAndBinanceFallback = async () => {
             cryptoPricesToman: cryptoPrices,
             goldPricesToman: goldPrices,
             changes24h,
+            sourceUsed: binanceLoaded ? 'TGJU + Binance' : 'TGJU Live',
             fetchedAt: Date.now()
         },
         sources: [
@@ -541,8 +544,12 @@ const processBrsMarketRates = (brsData) => {
                     goldPrices['ROB'] = price;
                     changes24h['ROB'] = change;
                 } else if (sym === 'IR_COIN_1G') {
+                    goldPrices['GRAM_COIN'] = price;
+                    goldPrices['GERAMI'] = price;
                     goldPrices['SEK'] = price;
-                    changes24h['SEK'] = change;
+                    changes24h['GRAM_COIN'] = change;
+                    changes24h['GERAMI'] = change;
+                    if (changes24h['SEK'] === undefined) changes24h['SEK'] = change;
                 }
             }
         });
@@ -579,9 +586,17 @@ const processBrsMarketRates = (brsData) => {
         cryptoPricesToman: cryptoPrices,
         goldPricesToman: goldPrices,
         changes24h,
+        sourceUsed: 'BrsApi.ir',
         fetchedAt: Date.now()
     };
 };
+
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
 
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
@@ -885,6 +900,26 @@ app.post('/api/transactions/delete', async (req, res) => {
         const user = { ...users[userIndex], transactions: [...users[userIndex].transactions] };
         user.transactions = user.transactions.filter(t => t.id !== id);
         users[userIndex] = user;
+        await saveUsers(users);
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/transactions/bulk', async (req, res) => {
+    let { username, transactions: incoming, mode = 'merge' } = req.body || {};
+    if (!username || !Array.isArray(incoming)) {
+        return res.status(400).json({ message: 'Invalid bulk transactions payload' });
+    }
+    username = username.toLowerCase();
+    let users = [...getUsers()];
+    const userIndex = users.findIndex(u => u.username === username);
+    if (userIndex > -1) {
+        const current = mode === 'replace' ? [] : [...users[userIndex].transactions];
+        const byId = new Map(current.map(t => [t.id, t]));
+        incoming.forEach(tx => {
+            if (tx && tx.id) byId.set(tx.id, tx);
+        });
+        users[userIndex] = { ...users[userIndex], transactions: Array.from(byId.values()) };
         await saveUsers(users);
     }
     res.json({ success: true });

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { X, Sparkles, AlertCircle, Calculator, RefreshCw, ArrowRightLeft } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, AlertCircle, Calculator, RefreshCw, ArrowRightLeft, Coins } from 'lucide-react';
 import { PriceData, getAssetDetail } from '../types';
 import { calculateAllBubbles } from '../utils/goldCalculator';
 import { formatNumber, formatPercent, formatToman } from '../utils/formatting';
@@ -21,21 +21,30 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
   const { t, language } = useTranslation();
   const [activeTab, setActiveTab] = useState<'live' | 'simulator'>('live');
 
-  // Simulator state
-  const [simUsdRate, setSimUsdRate] = useState<string>(() => (prices?.usdToToman || 70000).toString());
+  const [simUsdRate, setSimUsdRate] = useState<string>(() =>
+    (prices?.usdToToman || 70000).toString()
+  );
   const [simOunceUsd, setSimOunceUsd] = useState<string>(() => {
-    const calculated = prices?.usdToToman && prices?.gold18ToToman
-      ? Math.round((prices.gold18ToToman * 31.1035) / (0.75 * prices.usdToToman))
-      : 2700;
+    const calculated =
+      prices?.usdToToman && prices?.gold18ToToman
+        ? Math.round((prices.gold18ToToman * 31.1035) / (0.75 * prices.usdToToman))
+        : 2700;
     return calculated.toString();
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
 
   const parsedSimUsd = parseFloat(simUsdRate.replace(/,/g, '')) || 0;
   const parsedSimOunce = parseFloat(simOunceUsd.replace(/,/g, '')) || 0;
 
-  const liveBubbles = useMemo(() => {
-    return calculateAllBubbles(prices);
-  }, [prices]);
+  const liveBubbles = useMemo(() => calculateAllBubbles(prices), [prices]);
 
   const simulatedBubbles = useMemo(() => {
     if (!parsedSimUsd || !parsedSimOunce) return [];
@@ -45,116 +54,155 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
   if (!isOpen) return null;
 
   const currentUsdRate = prices?.usdToToman || 70000;
-  const estimatedOunceUsd = prices?.worldGoldUsd
-    || (prices?.goldPricesToman?.USD_XAU ? Math.round(prices.goldPricesToman.USD_XAU / currentUsdRate) : undefined)
-    || (prices?.gold18ToToman ? Math.round((prices.gold18ToToman * 31.1035) / (0.75 * currentUsdRate)) : 2700);
+  const estimatedOunceUsd =
+    prices?.worldGoldUsd ||
+    (prices?.goldPricesToman?.USD_XAU
+      ? Math.round(prices.goldPricesToman.USD_XAU / currentUsdRate)
+      : undefined) ||
+    (prices?.gold18ToToman
+      ? Math.round((prices.gold18ToToman * 31.1035) / (0.75 * currentUsdRate))
+      : 2700);
 
   return (
-    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-[var(--card-bg)] text-[color:var(--text-primary)] w-full max-w-2xl max-h-[90vh] rounded-[28px] sm:rounded-[36px] shadow-2xl overflow-hidden flex flex-col border border-slate-200/80 dark:border-slate-800/80 animate-in zoom-in-95 duration-200">
-        
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('bubble.title')}
+      className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center p-0 sm:p-4"
+    >
+      <div
+        className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm backdrop-enter"
+        onClick={onClose}
+      />
+
+      <div className="relative z-10 bg-[var(--card-bg)] text-[color:var(--text-primary)] w-full sm:max-w-2xl max-h-[90vh] rounded-t-[20px] sm:rounded-[20px] shadow-2xl overflow-hidden flex flex-col border border-[color:var(--border-color)] sheet-enter">
         {/* Header */}
-        <header className="px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-200/80 dark:border-slate-800/80 flex justify-between items-center bg-slate-50/70 dark:bg-slate-900/50">
+        <header className="px-5 py-4 border-b border-[color:var(--border-color)] flex justify-between items-center bg-[var(--muted-surface)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shadow-inner">
-              <Sparkles size={20} />
+            <div className="w-10 h-10 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[var(--brand-primary)] flex items-center justify-center">
+              <Coins size={20} />
             </div>
             <div>
-              <h2 className="font-black text-base sm:text-lg text-slate-800 dark:text-white">
+              <h2 className="font-bold text-base text-[color:var(--text-primary)]">
                 {t('bubble.title')}
               </h2>
-              <p className="text-[11px] text-slate-400 font-bold mt-0.5">
+              <p className="text-xs text-[color:var(--text-muted)] font-medium mt-0.5">
                 {t('bubble.subtitle')}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-all"
+            className="min-w-[38px] min-h-[38px] rounded-xl bg-[var(--card-bg)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] border border-[color:var(--border-color)] flex items-center justify-center transition-colors"
+            aria-label={t('common.close')}
           >
             <X size={18} />
           </button>
         </header>
 
         {/* Sub Header / Info Bar */}
-        <div className="px-5 sm:px-6 py-3 bg-amber-500/5 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-4">
+        <div className="px-5 py-3 bg-[var(--brand-soft)] border-b border-[color:var(--border-color)] flex flex-wrap items-center justify-between gap-3 text-xs tabular-nums">
+          <div className="flex items-center gap-4 flex-wrap">
             <div>
-              <span className="text-slate-400 font-bold">{t('bubble.baseUsd')}: </span>
-              <span className="font-black text-slate-800 dark:text-slate-200">{formatNumber(currentUsdRate, 0, language)} {t('common.toman')}</span>
+              <span className="text-[color:var(--text-muted)] font-medium">
+                {t('bubble.baseUsd')}:{' '}
+              </span>
+              <span className="font-bold text-[color:var(--text-primary)]">
+                {formatNumber(currentUsdRate, 0, language)} {t('common.toman')}
+              </span>
             </div>
             <div>
-              <span className="text-slate-400 font-bold">{t('bubble.worldOunce')}: </span>
-              <span className="font-black text-slate-800 dark:text-slate-200">{formatNumber(estimatedOunceUsd, 0, language)} {language === 'en' ? 'USD' : 'دلار'}</span>
+              <span className="text-[color:var(--text-muted)] font-medium">
+                {t('bubble.worldOunce')}:{' '}
+              </span>
+              <span className="font-bold text-[color:var(--text-primary)]">
+                {formatNumber(estimatedOunceUsd, 0, language)} {language === 'en' ? 'USD' : 'دلار'}
+              </span>
             </div>
           </div>
           {onRefreshPrices && (
             <button
+              type="button"
               onClick={onRefreshPrices}
-              className="flex items-center gap-1 text-[11px] font-black text-amber-600 dark:text-amber-400 hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand-primary)] hover:underline"
             >
-              <RefreshCw size={12} />
+              <RefreshCw size={13} />
               <span>{t('market.refreshPrices')}</span>
             </button>
           )}
         </div>
 
         {/* Tab Selection */}
-        <div className="px-5 sm:px-6 pt-4 flex gap-2">
-          <button
-            onClick={() => setActiveTab('live')}
-            className={`flex-1 py-2.5 rounded-2xl font-black text-xs transition-all ${
-              activeTab === 'live'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-            }`}
-          >
-            {t('bubble.liveMarketBubble')}
-          </button>
-          <button
-            onClick={() => setActiveTab('simulator')}
-            className={`flex-1 py-2.5 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'simulator'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-            }`}
-          >
-            <Calculator size={14} />
-            {t('bubble.scenarioSimulator')}
-          </button>
+        <div className="px-5 pt-4">
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-[var(--muted-surface)] border border-[color:var(--border-color)] rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab('live')}
+              className={`min-h-[40px] rounded-lg font-bold text-xs transition-colors ${
+                activeTab === 'live'
+                  ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
+              }`}
+            >
+              {t('bubble.liveMarketBubble')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('simulator')}
+              className={`min-h-[40px] rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-1.5 ${
+                activeTab === 'simulator'
+                  ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
+              }`}
+            >
+              <Calculator size={14} />
+              {t('bubble.scenarioSimulator')}
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 sm:p-6 flex-1 overflow-y-auto space-y-3.5 no-scrollbar">
+        <div className="p-5 flex-1 overflow-y-auto space-y-3.5">
           {activeTab === 'simulator' && (
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
-              <div className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                <ArrowRightLeft size={14} className="text-amber-500" />
-                <span>{language === 'en' ? 'If Dollar and Gold Ounce reach these levels, what will prices and bubbles be?' : 'اگر دلار و انس به مقادیر زیر برسند، قیمت و حباب طلا و سکه چقدر خواهد شد؟'}</span>
+            <div className="p-4 rounded-xl bg-[var(--muted-surface)] border border-[color:var(--border-color)] space-y-3">
+              <div className="text-xs font-semibold text-[color:var(--text-primary)] flex items-center gap-1.5">
+                <ArrowRightLeft size={14} className="text-[var(--brand-primary)] shrink-0" />
+                <span>
+                  {language === 'en'
+                    ? 'Simulate coin intrinsic values under target USD & Ounce rates:'
+                    : 'اگر دلار و انس جهانی به مقادیر زیر برسند، ارزش ذاتی و حباب چقدر خواهد بود؟'}
+                </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 block mb-1">
-                    {language === 'en' ? 'Target Dollar Rate (Toman)' : 'قیمت پیش‌بینی دلار (تومان)'}
+                  <label className="text-xs font-bold text-[color:var(--text-muted)] block mb-1">
+                    {language === 'en'
+                      ? 'Target Dollar Rate (Toman)'
+                      : 'قیمت پیش‌بینی دلار (تومان)'}
                   </label>
                   <input
                     type="number"
                     value={simUsdRate}
                     onChange={(e) => setSimUsdRate(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-sm font-black focus:outline-none focus:border-amber-500 text-slate-800 dark:text-white"
+                    className="w-full min-h-[42px] bg-[var(--card-bg)] border border-[color:var(--border-color)] rounded-xl py-2 px-3.5 text-base sm:text-sm font-bold focus:outline-none focus:border-[var(--brand-primary)] text-[color:var(--text-primary)] tabular-nums"
                     placeholder="70000"
+                    dir="ltr"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 block mb-1">
-                    {language === 'en' ? 'Target Gold Ounce (USD)' : 'قیمت پیش‌بینی انس طلا (دلار)'}
+                  <label className="text-xs font-bold text-[color:var(--text-muted)] block mb-1">
+                    {language === 'en'
+                      ? 'Target Gold Ounce (USD)'
+                      : 'قیمت پیش‌بینی انس طلا (دلار)'}
                   </label>
                   <input
                     type="number"
                     value={simOunceUsd}
                     onChange={(e) => setSimOunceUsd(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-sm font-black focus:outline-none focus:border-amber-500 text-slate-800 dark:text-white"
+                    className="w-full min-h-[42px] bg-[var(--card-bg)] border border-[color:var(--border-color)] rounded-xl py-2 px-3.5 text-base sm:text-sm font-bold focus:outline-none focus:border-[var(--brand-primary)] text-[color:var(--text-primary)] tabular-nums"
                     placeholder="2700"
+                    dir="ltr"
                   />
                 </div>
               </div>
@@ -162,65 +210,87 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
           )}
 
           {/* Cards Grid */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {(activeTab === 'live' ? liveBubbles : simulatedBubbles).map((item) => {
               const isHigh = item.riskLevel === 'HIGH';
               const isMed = item.riskLevel === 'MEDIUM';
 
               const badgeColor = isHigh
-                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30'
                 : isMed
-                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                  : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30';
 
-              const statusText = isHigh ? t('bubble.highBubble') : isMed ? t('bubble.mediumBubble') : t('bubble.fairBubble');
+              const statusText = isHigh
+                ? t('bubble.highBubble')
+                : isMed
+                  ? t('bubble.mediumBubble')
+                  : t('bubble.fairBubble');
               const itemName = getAssetDetail(item.symbol, language).name || item.name;
 
               return (
                 <div
                   key={item.symbol}
-                  className="p-4 rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 hover:border-amber-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+                  className="p-4 rounded-xl bg-[var(--muted-surface)] border border-[color:var(--border-color)] hover:border-[var(--brand-border)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-sm text-slate-800 dark:text-white">{itemName}</span>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${badgeColor}`}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm text-[color:var(--text-primary)]">
+                        {itemName}
+                      </span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${badgeColor}`}>
                         {statusText}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 font-bold flex items-center gap-2">
-                      <span>{t('bubble.weight')}: {formatNumber(item.weightGrams, 3, language)} {language === 'en' ? 'g' : 'گرم'}</span>
+                    <div className="text-xs text-[color:var(--text-muted)] font-medium flex items-center gap-2 tabular-nums">
+                      <span>
+                        {t('bubble.weight')}: {formatNumber(item.weightGrams, 3, language)}{' '}
+                        {language === 'en' ? 'g' : 'گرم'}
+                      </span>
                       <span>•</span>
-                      <span>{t('bubble.carat')}: {formatNumber(item.carat, 0, language)}</span>
+                      <span>
+                        {t('bubble.carat')}: {formatNumber(item.carat, 0, language)}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                    <div className="text-right sm:text-left">
-                      <div className="text-[10px] text-slate-400 font-bold">{t('bubble.intrinsicValue')}</div>
-                      <div className="text-xs font-black text-slate-700 dark:text-slate-300">
-                        {formatToman(item.intrinsicValueToman, language)} <span className="text-[10px] opacity-70">{language === 'en' ? 'T' : 'ت'}</span>
+                  <div className="flex items-center justify-between sm:justify-end gap-5 pt-2 sm:pt-0 border-t sm:border-t-0 border-[color:var(--border-color)] tabular-nums">
+                    <div className="text-start">
+                      <div className="text-xs text-[color:var(--text-muted)] font-medium">
+                        {t('bubble.intrinsicValue')}
+                      </div>
+                      <div className="text-xs font-bold text-[color:var(--text-primary)] mt-0.5" dir="ltr">
+                        {formatToman(item.intrinsicValueToman, language)}{' '}
+                        <span className="opacity-70">{language === 'en' ? 'T' : 'ت'}</span>
                       </div>
                     </div>
 
-                    <div className="text-right sm:text-left">
-                      <div className="text-[10px] text-slate-400 font-bold">{t('bubble.marketPrice')}</div>
-                      <div className="text-xs font-black text-amber-600 dark:text-amber-400">
-                        {formatToman(item.marketPriceToman, language)} <span className="text-[10px] opacity-70">{language === 'en' ? 'T' : 'ت'}</span>
+                    <div className="text-start">
+                      <div className="text-xs text-[color:var(--text-muted)] font-medium">
+                        {t('bubble.marketPrice')}
+                      </div>
+                      <div className="text-xs font-bold text-[var(--brand-primary)] mt-0.5" dir="ltr">
+                        {formatToman(item.marketPriceToman, language)}{' '}
+                        <span className="opacity-70">{language === 'en' ? 'T' : 'ت'}</span>
                       </div>
                     </div>
 
-                    <div className="text-left min-w-[75px]">
-                      <div className="text-[10px] text-slate-400 font-bold">{t('market.bubble')}</div>
+                    <div className="text-end min-w-[78px]" dir="ltr">
+                      <div className="text-xs text-[color:var(--text-muted)] font-medium">
+                        {t('market.bubble')}
+                      </div>
                       <div
-                        className={`text-xs font-black ${
-                          item.bubblePercent > 0 ? 'text-rose-500' : 'text-emerald-500'
+                        className={`text-xs font-extrabold ${
+                          item.bubblePercent > 0
+                            ? 'text-rose-700 dark:text-rose-400'
+                            : 'text-emerald-700 dark:text-emerald-400'
                         }`}
                       >
                         {formatPercent(item.bubblePercent, language)}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-bold">
-                        {formatToman(Math.abs(item.bubbleToman), language)} {language === 'en' ? 'T' : 'ت'}
+                      <div className="text-xs text-[color:var(--text-muted)] font-medium">
+                        {formatToman(Math.abs(item.bubbleToman), language)}{' '}
+                        {language === 'en' ? 'T' : 'ت'}
                       </div>
                     </div>
                   </div>
@@ -231,16 +301,21 @@ export const GoldBubbleModal: React.FC<GoldBubbleModalProps> = ({
         </div>
 
         {/* Footer */}
-        <footer className="p-4 bg-slate-50/80 dark:bg-slate-900/60 border-t border-slate-200/80 dark:border-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+        <footer className="p-4 bg-[var(--muted-surface)] border-t border-[color:var(--border-color)] text-xs text-[color:var(--text-muted)] flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <AlertCircle size={14} className="text-amber-500" />
-            <span>{language === 'en' ? 'Negative bubble indicates price is below intrinsic raw gold melt value.' : 'حباب منفی به معنی قیمت پایین‌تر از ارزش طلای خام است.'}</span>
+            <AlertCircle size={14} className="text-[var(--brand-primary)] shrink-0" />
+            <span>
+              {language === 'en'
+                ? 'Negative bubble indicates price is below intrinsic raw gold melt value.'
+                : 'حباب منفی به معنی قیمت پایین‌تر از ارزش طلای خام است.'}
+            </span>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-xs hover:bg-amber-400 transition-all"
+            className="min-h-[38px] px-5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs shadow-gold transition-colors"
           >
-            {t('common.confirm')}
+            {t('common.close')}
           </button>
         </footer>
       </div>

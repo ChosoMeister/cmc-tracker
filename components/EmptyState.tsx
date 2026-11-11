@@ -1,71 +1,59 @@
-
 import React from 'react';
 import { PackageOpen, Wallet, History, PieChart, Plus } from 'lucide-react';
 
 type EmptyStateType = 'holdings' | 'transactions' | 'chart' | 'default';
 
 interface EmptyStateProps {
-    type?: EmptyStateType;
-    title: string;
-    description: string;
-    actionLabel?: string;
-    onAction?: () => void;
+  type?: EmptyStateType;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-const iconMap: Record<EmptyStateType, React.ComponentType<{ size: number; strokeWidth: number; className?: string }>> = {
-    holdings: Wallet,
-    transactions: History,
-    chart: PieChart,
-    default: PackageOpen,
+const iconMap: Record<
+  EmptyStateType,
+  React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
+> = {
+  holdings: Wallet,
+  transactions: History,
+  chart: PieChart,
+  default: PackageOpen,
 };
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-    type = 'default',
-    title,
-    description,
-    actionLabel,
-    onAction
+  type = 'default',
+  title,
+  description,
+  actionLabel,
+  onAction,
 }) => {
-    const Icon = iconMap[type];
+  const Icon = iconMap[type];
 
-    return (
-        <div className="flex flex-col items-center justify-center py-16 px-6 text-center animate-in fade-in duration-500">
-            {/* Animated icon container */}
-            <div className="relative mb-6">
-                {/* Glow effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-violet-500/20 rounded-full blur-2xl scale-150 animate-pulse"></div>
+  return (
+    <div className="flex flex-col items-center justify-center py-14 px-6 text-center animate-in">
+      <div className="w-16 h-16 rounded-[20px] bg-[var(--brand-soft)] border border-[var(--brand-border)] flex items-center justify-center mb-5">
+        <Icon size={30} strokeWidth={1.75} className="text-[var(--brand-primary)]" />
+      </div>
 
-                {/* Icon circle */}
-                <div className="relative w-20 h-20 bg-gradient-to-br from-blue-500/10 to-violet-500/10 rounded-full flex items-center justify-center border border-blue-500/20 shadow-xl backdrop-blur-sm">
-                    <Icon size={36} strokeWidth={1.5} className="text-blue-500 dark:text-blue-400" />
-                </div>
+      <h3 className="text-[color:var(--text-primary)] font-bold text-lg mb-2">
+        {title}
+      </h3>
 
-                {/* Decorative dots */}
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-100"></div>
-                <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-violet-500 rounded-full animate-bounce delay-300"></div>
-            </div>
+      <p className="text-[color:var(--text-muted)] text-sm max-w-sm leading-relaxed mb-6">
+        {description}
+      </p>
 
-            {/* Title */}
-            <h3 className="text-[color:var(--text-primary)] font-black text-xl mb-3 tracking-tight">
-                {title}
-            </h3>
-
-            {/* Description */}
-            <p className="text-[color:var(--text-muted)] text-sm max-w-[280px] leading-relaxed mb-8">
-                {description}
-            </p>
-
-            {/* CTA Button */}
-            {actionLabel && onAction && (
-                <button
-                    onClick={onAction}
-                    className="group relative overflow-hidden flex items-center gap-2 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold px-6 py-3.5 rounded-2xl shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 transition-all"
-                >
-                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12"></div>
-                    <Plus size={18} strokeWidth={2.5} />
-                    <span>{actionLabel}</span>
-                </button>
-            )}
-        </div>
-    );
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex items-center gap-2 min-h-[44px] bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-gold active:scale-95 transition-transform"
+        >
+          <Plus size={17} strokeWidth={2.5} />
+          <span>{actionLabel}</span>
+        </button>
+      )}
+    </div>
+  );
 };

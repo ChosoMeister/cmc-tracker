@@ -1,24 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  X, 
-  UserCircle, 
-  Palette, 
-  Moon, 
-  SunMedium, 
-  Laptop2, 
-  Lock, 
-  CheckCircle2, 
-  AlertCircle, 
-  LogOut, 
-  Calculator, 
-  Download, 
-  Shield, 
+import {
+  X,
+  UserCircle,
+  Palette,
+  Moon,
+  SunMedium,
+  Laptop2,
+  Lock,
+  CheckCircle2,
+  AlertCircle,
+  LogOut,
+  Calculator,
+  Download,
+  Shield,
   RefreshCw,
-  Sparkles,
   Layers,
-  Languages
+  Languages,
 } from 'lucide-react';
 import * as AuthService from '../services/authService';
+import { ConfirmDialog } from './ConfirmDialog';
 import { useTranslation } from '../contexts/LanguageContext';
 
 export type ThemeOption = 'light' | 'dark' | 'system';
@@ -56,14 +56,18 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onOpenAdmin,
   isAdmin,
   onPriceUpdate,
-  isPriceUpdating
+  isPriceUpdating,
 }) => {
   const { t, language, setLanguage } = useTranslation();
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [nameValue, setNameValue] = useState(displayName);
-  const [status, setStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
+  const [status, setStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({
+    type: null,
+    msg: '',
+  });
   const [savingPassword, setSavingPassword] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     setNameValue(displayName);
@@ -74,22 +78,38 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       setNewPass('');
       setConfirmPass('');
       setStatus({ type: null, msg: '' });
+      setShowLogoutConfirm(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass !== confirmPass) {
-      setStatus({ type: 'error', msg: language === 'en' ? 'Passwords do not match' : 'تکرار رمز عبور مطابقت ندارد' });
+      setStatus({
+        type: 'error',
+        msg: language === 'en' ? 'Passwords do not match' : 'تکرار رمز عبور مطابقت ندارد',
+      });
       return;
     }
 
     try {
       setSavingPassword(true);
       await AuthService.updatePassword(username, newPass);
-      setStatus({ type: 'success', msg: language === 'en' ? 'Password updated successfully' : 'رمز عبور با موفقیت بروزرسانی شد' });
+      setStatus({
+        type: 'success',
+        msg: language === 'en' ? 'Password updated successfully' : 'رمز عبور با موفقیت بروزرسانی شد',
+      });
       setTimeout(() => {
         onClose();
         setStatus({ type: null, msg: '' });
@@ -97,7 +117,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         setConfirmPass('');
       }, 1200);
     } catch (error: any) {
-      setStatus({ type: 'error', msg: error?.message || (language === 'en' ? 'Error updating password' : 'خطا در بروزرسانی رمز عبور') });
+      setStatus({
+        type: 'error',
+        msg:
+          error?.message ||
+          (language === 'en' ? 'Error updating password' : 'خطا در بروزرسانی رمز عبور'),
+      });
     } finally {
       setSavingPassword(false);
     }
@@ -106,226 +131,245 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const handleSaveDisplayName = (e: React.FormEvent) => {
     e.preventDefault();
     onDisplayNameChange(nameValue.trim() || displayName);
-    setStatus({ type: 'success', msg: language === 'en' ? 'Display name saved' : 'نام نمایشی ذخیره شد' });
+    setStatus({
+      type: 'success',
+      msg: language === 'en' ? 'Display name saved' : 'نام نمایشی ذخیره شد',
+    });
   };
 
   return (
-    <div className="fixed inset-0 z-[120]">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className={`fixed inset-y-0 ${language === 'en' ? 'left-0 rounded-r-[24px] sm:rounded-r-[32px]' : 'right-0 rounded-l-[24px] sm:rounded-l-[32px]'} w-full sm:max-w-md bg-[var(--app-bg)] text-[color:var(--text-primary)] shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300`}>
-        <div className="h-full overflow-y-auto no-scrollbar">
-          <div className="p-6 border-b border-[color:var(--border-color)] flex items-center justify-between sticky top-0 bg-[var(--app-bg)] z-10">
+    <>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('settings.title')}
+        className="fixed inset-0 z-[120] flex justify-end"
+      >
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm backdrop-enter"
+          onClick={onClose}
+        />
+        <div
+          className={`relative z-10 w-full sm:max-w-md h-full bg-[var(--card-bg)] text-[color:var(--text-primary)] border-s border-[color:var(--border-color)] shadow-2xl overflow-hidden flex flex-col ${
+            language === 'en' ? 'drawer-enter-ltr' : 'drawer-enter-rtl'
+          }`}
+        >
+          {/* Header */}
+          <div className="p-5 border-b border-[color:var(--border-color)] flex items-center justify-between bg-[var(--muted-surface)]">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <div className="w-11 h-11 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[var(--brand-primary)] flex items-center justify-center">
                 <UserCircle size={22} />
               </div>
               <div>
-                <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.accountSettings')}</p>
-                <h2 className="text-lg font-black">{displayName || username}</h2>
+                <p className="text-xs font-semibold text-[color:var(--text-muted)]">
+                  {t('settings.accountSettings')}
+                </p>
+                <h2 className="text-base font-bold">{displayName || username}</h2>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-[color:var(--muted-surface)] transition-colors" aria-label={t('common.close')}>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-w-[40px] min-h-[40px] rounded-xl hover:bg-[var(--pill-bg)] flex items-center justify-center transition-colors"
+              aria-label={t('common.close')}
+            >
               <X size={20} />
             </button>
           </div>
 
-          <div className="p-6 space-y-8">
-            
-            {/* Quick Tools for Mobile */}
-            <div className="space-y-3">
-              <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{language === 'en' ? 'Quick Utilities' : 'ابزارهای کاربردی'}</p>
+          <div className="flex-1 overflow-y-auto p-5 space-y-7">
+            {/* Neutral Monochrome Quick Utilities */}
+            <div className="space-y-2.5">
+              <p className="text-xs font-bold text-[color:var(--text-muted)]">
+                {language === 'en' ? 'Tools & Utilities' : 'ابزارهای کاربردی'}
+              </p>
               <div className="grid grid-cols-2 gap-2.5">
                 {onOpenGoldBubble && (
                   <button
                     type="button"
-                    onClick={() => { onClose(); onOpenGoldBubble(); }}
-                    className="p-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center gap-2.5 text-right transition-all"
+                    onClick={() => {
+                      onClose();
+                      onOpenGoldBubble();
+                    }}
+                    className="min-h-[44px] p-3 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] flex items-center gap-2.5 text-start transition-colors"
                   >
-                    <Calculator size={18} className="text-amber-500 shrink-0" />
-                    <span className="text-xs font-black">{t('market.bubbleCalc')}</span>
+                    <Calculator size={17} className="text-[var(--brand-primary)] shrink-0" />
+                    <span className="text-xs font-bold">{t('market.bubbleCalc')}</span>
                   </button>
                 )}
                 {onOpenDcaCalculator && (
                   <button
                     type="button"
-                    onClick={() => { onClose(); onOpenDcaCalculator(); }}
-                    className="p-3 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 flex items-center gap-2.5 text-right transition-all"
+                    onClick={() => {
+                      onClose();
+                      onOpenDcaCalculator();
+                    }}
+                    className="min-h-[44px] p-3 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] flex items-center gap-2.5 text-start transition-colors"
                   >
-                    <Layers size={18} className="text-indigo-500 shrink-0" />
-                    <span className="text-xs font-black">{t('common.dcaCalculator')}</span>
+                    <Layers size={17} className="text-[var(--brand-primary)] shrink-0" />
+                    <span className="text-xs font-bold">{t('common.dcaCalculator')}</span>
                   </button>
                 )}
                 {onOpenExportImport && (
                   <button
                     type="button"
-                    onClick={() => { onClose(); onOpenExportImport(); }}
-                    className="p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center gap-2.5 text-right transition-all"
+                    onClick={() => {
+                      onClose();
+                      onOpenExportImport();
+                    }}
+                    className="min-h-[44px] p-3 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] flex items-center gap-2.5 text-start transition-colors"
                   >
-                    <Download size={18} className="text-emerald-500 shrink-0" />
-                    <span className="text-xs font-black">{t('common.exportImport')}</span>
+                    <Download size={17} className="text-[var(--brand-primary)] shrink-0" />
+                    <span className="text-xs font-bold">{t('common.exportImport')}</span>
                   </button>
                 )}
                 {onPriceUpdate && (
                   <button
                     type="button"
-                    onClick={() => { onPriceUpdate(); }}
+                    onClick={() => onPriceUpdate()}
                     disabled={isPriceUpdating}
-                    className="p-3 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center gap-2.5 text-right transition-all"
+                    className="min-h-[44px] p-3 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] flex items-center gap-2.5 text-start transition-colors disabled:opacity-60"
                   >
-                    <RefreshCw size={18} className={`text-blue-500 shrink-0 ${isPriceUpdating ? 'animate-spin' : ''}`} />
-                    <span className="text-xs font-black">{t('market.refreshPrices')}</span>
+                    <RefreshCw
+                      size={17}
+                      className={`text-[var(--brand-primary)] shrink-0 ${
+                        isPriceUpdating ? 'animate-spin' : ''
+                      }`}
+                    />
+                    <span className="text-xs font-bold">{t('market.refreshPrices')}</span>
                   </button>
                 )}
                 {isAdmin && onOpenAdmin && (
                   <button
                     type="button"
-                    onClick={() => { onClose(); onOpenAdmin(); }}
-                    className="p-3 rounded-2xl bg-purple-500/10 hover:bg-purple-500/15 border border-purple-500/20 text-purple-700 dark:text-purple-300 flex items-center gap-2.5 text-right transition-all"
+                    onClick={() => {
+                      onClose();
+                      onOpenAdmin();
+                    }}
+                    className="col-span-2 min-h-[44px] p-3 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] flex items-center gap-2.5 text-start transition-colors"
                   >
-                    <Shield size={18} className="text-purple-500 shrink-0" />
-                    <span className="text-xs font-black">{t('common.adminPanel')}</span>
+                    <Shield size={17} className="text-[var(--brand-primary)] shrink-0" />
+                    <span className="text-xs font-bold">{t('common.adminPanel')}</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Language Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
-                  <Languages size={20} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.language')}</p>
-                  <h3 className="text-base font-black">{t('settings.language')}</h3>
-                </div>
+            {/* Language Selection (Zero Flag Emojis) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Languages size={17} className="text-[var(--brand-primary)]" />
+                <h3 className="text-sm font-bold">{t('settings.language')}</h3>
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setLanguage('fa')}
-                  className={`flex items-center justify-center gap-2 border rounded-2xl p-3 text-center transition-all ${
+                  className={`min-h-[44px] flex items-center justify-center gap-2 border rounded-xl p-2.5 text-xs transition-colors ${
                     language === 'fa'
-                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-black shadow-sm'
-                      : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-bold'
+                      ? 'border-[var(--brand-border)] bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold'
+                      : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-semibold'
                   }`}
                 >
-                  <span className="text-base">🇮🇷</span>
-                  <span className="text-xs">فارسی (RTL)</span>
+                  <span className="px-1.5 py-0.5 rounded bg-[var(--card-bg)] text-xs font-mono">FA</span>
+                  <span>فارسی (RTL)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setLanguage('en')}
-                  className={`flex items-center justify-center gap-2 border rounded-2xl p-3 text-center transition-all ${
+                  className={`min-h-[44px] flex items-center justify-center gap-2 border rounded-xl p-2.5 text-xs transition-colors ${
                     language === 'en'
-                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-black shadow-sm'
-                      : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-bold'
+                      ? 'border-[var(--brand-border)] bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold'
+                      : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-semibold'
                   }`}
                 >
-                  <span className="text-base">🇬🇧</span>
-                  <span className="text-xs">English (LTR)</span>
+                  <span className="px-1.5 py-0.5 rounded bg-[var(--card-bg)] text-xs font-mono">EN</span>
+                  <span>English (LTR)</span>
                 </button>
               </div>
             </div>
 
-            {/* Display Name Edit */}
-            <form onSubmit={handleSaveDisplayName} className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                  <Palette size={20} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.displayName')}</p>
-                  <h3 className="text-base font-black">{t('settings.displayName')}</h3>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-[color:var(--text-muted)] px-1">{t('settings.displayName')}</label>
-                <input
-                  type="text"
-                  value={nameValue}
-                  onChange={(e) => setNameValue(e.target.value)}
-                  className="w-full rounded-2xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder={t('settings.displayName')}
-                />
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-2xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all text-xs"
-                >
-                  {t('settings.saveName')}
-                </button>
-              </div>
-            </form>
-
-            {/* Theme Options */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <Palette size={20} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.theme')}</p>
-                  <h3 className="text-base font-black">{t('settings.theme')}</h3>
-                </div>
+            {/* Theme Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Palette size={17} className="text-[var(--brand-primary)]" />
+                <h3 className="text-sm font-bold">{t('settings.theme')}</h3>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { key: 'light', label: t('settings.light'), icon: <SunMedium size={18} /> },
-                  { key: 'dark', label: t('settings.dark'), icon: <Moon size={18} /> },
-                  { key: 'system', label: t('settings.system'), icon: <Laptop2 size={18} /> },
+                  { key: 'light', label: t('settings.light'), icon: <SunMedium size={17} /> },
+                  { key: 'dark', label: t('settings.dark'), icon: <Moon size={17} /> },
+                  { key: 'system', label: t('settings.system'), icon: <Laptop2 size={17} /> },
                 ].map((option) => (
                   <button
                     key={option.key}
                     type="button"
                     onClick={() => onThemeChange(option.key as ThemeOption)}
-                    className={`flex flex-col items-center justify-center gap-2 border rounded-2xl p-3 text-center transition-all ${
+                    className={`min-h-[54px] flex flex-col items-center justify-center gap-1.5 border rounded-xl p-2.5 text-center transition-colors ${
                       theme === option.key
-                        ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)]'
+                        ? 'border-[var(--brand-border)] bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold'
+                        : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-semibold'
                     }`}
                   >
-                    <div className="text-blue-500">
-                      {option.icon}
-                    </div>
-                    <p className="text-xs font-black">{option.label}</p>
+                    <div>{option.icon}</div>
+                    <span className="text-xs">{option.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Password Update */}
-            <form onSubmit={handleUpdatePassword} className="space-y-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <Lock size={20} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.18em]">{t('settings.changePassword')}</p>
-                  <h3 className="text-base font-black">{t('settings.security')}</h3>
-                </div>
+            {/* Display Name */}
+            <form onSubmit={handleSaveDisplayName} className="space-y-2.5">
+              <label className="text-xs font-bold text-[color:var(--text-muted)] block">
+                {t('settings.displayName')}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  className="flex-1 min-h-[42px] rounded-xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-3.5 py-2 text-base sm:text-sm focus:ring-2 focus:ring-[var(--brand-primary)] outline-none"
+                  placeholder={t('settings.displayName')}
+                />
+                <button
+                  type="submit"
+                  className="min-h-[42px] px-4 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold rounded-xl text-xs transition-colors"
+                >
+                  {t('common.save')}
+                </button>
+              </div>
+            </form>
+
+            {/* Security & Password */}
+            <form onSubmit={handleUpdatePassword} className="space-y-3 pt-2 border-t border-[color:var(--border-color)]">
+              <div className="flex items-center gap-2">
+                <Lock size={17} className="text-[var(--brand-primary)]" />
+                <h3 className="text-sm font-bold">{t('settings.security')}</h3>
               </div>
 
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-[color:var(--text-muted)] px-1">{t('settings.newPassword')}</label>
+              <div className="space-y-2.5">
+                <div>
+                  <label className="text-xs font-semibold text-[color:var(--text-muted)] block mb-1">
+                    {t('settings.newPassword')}
+                  </label>
                   <input
                     type="password"
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
-                    className="w-full rounded-2xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full min-h-[42px] rounded-xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-3.5 py-2 text-base sm:text-sm focus:ring-2 focus:ring-[var(--brand-primary)] outline-none"
                     placeholder={language === 'en' ? 'Minimum 6 characters' : 'حداقل ۶ کاراکتر'}
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-[color:var(--text-muted)] px-1">{t('settings.confirmPassword')}</label>
+                <div>
+                  <label className="text-xs font-semibold text-[color:var(--text-muted)] block mb-1">
+                    {t('settings.confirmPassword')}
+                  </label>
                   <input
                     type="password"
                     value={confirmPass}
                     onChange={(e) => setConfirmPass(e.target.value)}
-                    className="w-full rounded-2xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full min-h-[42px] rounded-xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-3.5 py-2 text-base sm:text-sm focus:ring-2 focus:ring-[var(--brand-primary)] outline-none"
                     placeholder="••••••••"
                     required
                   />
@@ -334,38 +378,59 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
               {status.type && (
                 <div
-                  className={`p-4 rounded-2xl flex items-center gap-3 border ${
+                  className={`p-3 rounded-xl flex items-center gap-2.5 border text-xs font-semibold ${
                     status.type === 'success'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-900'
-                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-100 dark:border-rose-900'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
+                      : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25'
                   }`}
                 >
-                  {status.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                  <span className="text-xs font-bold">{status.msg}</span>
+                  {status.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                  <span>{status.msg}</span>
                 </div>
               )}
 
-              <div className="flex flex-col gap-2.5 pt-2">
-                <button
-                  type="submit"
-                  disabled={savingPassword}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {savingPassword ? t('settings.updatingPassword') : t('settings.updatePassword')}
-                </button>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="w-full border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-black py-3 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 text-xs"
-                >
-                  <LogOut size={16} />
-                  {t('settings.logout')}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={savingPassword}
+                className="w-full min-h-[44px] bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] font-bold rounded-xl text-xs transition-colors disabled:opacity-60"
+              >
+                {savingPassword ? t('settings.updatingPassword') : t('settings.updatePassword')}
+              </button>
             </form>
+
+            {/* Guarded Sign-Out */}
+            <div className="pt-3 border-t border-[color:var(--border-color)]">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full min-h-[44px] border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold rounded-xl flex items-center justify-center gap-2 text-xs transition-colors"
+              >
+                <LogOut size={16} />
+                <span>{t('settings.logout')}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title={t('settings.logout')}
+        message={
+          language === 'en'
+            ? 'Are you sure you want to sign out of your portfolio session?'
+            : 'آیا مطمئن هستید که می‌خواهید از حساب کاربری خود خارج شوید؟'
+        }
+        confirmLabel={t('settings.logout')}
+        cancelLabel={t('common.cancel')}
+        variant="danger"
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          onClose();
+          onLogout();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+    </>
   );
 };

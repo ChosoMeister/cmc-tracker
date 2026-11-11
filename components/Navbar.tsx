@@ -1,19 +1,13 @@
-import React from 'react';
-import { 
-  Shield, 
-  Sparkles, 
-  Search, 
-  Calculator, 
-  Download, 
-  UserCircle, 
-  RefreshCw, 
-  Plus, 
-  LogOut, 
-  LayoutDashboard, 
-  PieChart, 
+import React, { memo } from 'react';
+import {
+  Search,
+  UserCircle,
+  Plus,
+  LayoutDashboard,
+  PieChart,
   History,
   TrendingUp,
-  Languages
+  Languages,
 } from 'lucide-react';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTranslation } from '../contexts/LanguageContext';
@@ -24,236 +18,170 @@ interface NavbarProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
   onOpenCommandPalette: () => void;
-  onOpenGoldBubble: () => void;
-  onOpenExportImport: () => void;
   onOpenSettings: () => void;
-  onOpenAdmin?: () => void;
-  onPriceUpdate: () => void;
-  isPriceUpdating: boolean;
   onOpenNewTx: () => void;
-  onLogout: () => void;
-  theme: 'light' | 'dark' | 'system';
-  resolvedTheme: 'light' | 'dark';
-  onToggleTheme: () => void;
   holdingsCount: number;
   transactionsCount: number;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
+const NavbarComponent: React.FC<NavbarProps> = ({
   user,
   displayName,
   currentTab,
   onTabChange,
   onOpenCommandPalette,
-  onOpenGoldBubble,
-  onOpenExportImport,
   onOpenSettings,
-  onOpenAdmin,
-  onPriceUpdate,
-  isPriceUpdating,
   onOpenNewTx,
-  onLogout,
   holdingsCount,
-  transactionsCount
+  transactionsCount,
 }) => {
   const { t, language, toggleLanguage } = useTranslation();
   const { haptic } = useHaptics();
 
   const navTabs = [
     { id: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
-    { id: 'market', label: t('nav.market'), icon: TrendingUp },
     { id: 'holdings', label: t('nav.holdings'), icon: PieChart, count: holdingsCount },
+    { id: 'market', label: t('nav.market'), icon: TrendingUp },
     { id: 'transactions', label: t('nav.transactions'), icon: History, count: transactionsCount },
   ];
 
-  return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/80 dark:bg-[#0b1224]/85 border-b border-slate-200/80 dark:border-slate-800/80 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-20 gap-2 sm:gap-4">
-          
-          {/* Right Section: Brand & Profile */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md sm:shadow-lg shadow-blue-500/25 ring-2 ring-blue-400/20 shrink-0">
-              <Shield size={16} className="text-white sm:w-5 sm:h-5" />
-            </div>
-            
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-black text-sm sm:text-base tracking-tight text-slate-800 dark:text-white whitespace-nowrap">
-                  {displayName || (language === 'en' ? 'Portfolio' : 'سبد دارایی')}
-                </span>
-                <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
-                  {user.username}
-                </span>
-              </div>
-              <div className="hidden sm:flex items-center gap-1.5 mt-0.5">
-                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold whitespace-nowrap">
-                  {language === 'en' ? 'Asset Tracker' : 'مدیریت پورتفوی'}
-                </span>
-                <span className="text-[8px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded flex items-center gap-0.5 border border-indigo-500/20 whitespace-nowrap">
-                  <Sparkles size={8} /> {language === 'en' ? 'AI Powered' : 'هوش مصنوعی'}
-                </span>
-              </div>
-            </div>
-          </div>
+  const initials = (displayName || user.username || 'Z').slice(0, 2).toUpperCase();
 
-          {/* Center Section: Desktop Navigation Tabs (Hidden on Mobile) */}
-          <div className="hidden md:flex items-center bg-slate-100/80 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-inner">
+  return (
+    <header className="sticky top-0 z-40 w-full glass border-b border-[color:var(--border-color)] pt-safe">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-3">
+          {/* Brand Identity (Zero AI-Slop Sparkles) */}
+          <button
+            type="button"
+            onClick={() => onTabChange('overview')}
+            className="flex items-center gap-3 shrink-0 text-start group"
+          >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[var(--brand-primary)] flex items-center justify-center font-extrabold text-sm shadow-sm shrink-0">
+              Z
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm sm:text-base text-[color:var(--text-primary)] whitespace-nowrap">
+                  {displayName || (language === 'en' ? 'Personal Portfolio' : 'پرتفوی شخصی')}
+                </span>
+                <span className="hidden lg:inline-block text-xs font-semibold px-2 py-0.5 rounded-lg bg-[var(--muted-surface)] text-[color:var(--text-muted)] border border-[color:var(--border-color)]">
+                  @{user.username}
+                </span>
+              </div>
+              <span className="hidden sm:block text-xs text-[color:var(--text-muted)] font-medium">
+                {language === 'en' ? 'Zarfolio Wealth Terminal' : 'ترمینال مدیریت دارایی زرفولیو'}
+              </span>
+            </div>
+          </button>
+
+          {/* Center: 4 Primary Desktop Tabs */}
+          <nav
+            aria-label="Primary Navigation"
+            className="hidden md:flex items-center bg-[var(--muted-surface)] p-1 rounded-xl border border-[color:var(--border-color)]"
+          >
             {navTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = currentTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => {
                     haptic('selection');
                     onTabChange(tab.id);
                   }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-colors ${
                     isActive
-                      ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'bg-[var(--card-bg)] text-[color:var(--text-primary)] shadow-sm border border-[color:var(--border-color)]'
+                      : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
                   }`}
                 >
-                  <Icon size={16} />
+                  <Icon
+                    size={15}
+                    className={isActive ? 'text-[var(--brand-primary)]' : ''}
+                  />
                   <span>{tab.label}</span>
                   {typeof tab.count === 'number' && tab.count > 0 && (
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isActive 
-                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' 
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                    }`}>
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded-md font-bold tabular-nums ${
+                        isActive
+                          ? 'bg-[var(--brand-soft)] text-[var(--brand-primary)]'
+                          : 'bg-[var(--pill-bg)] text-[color:var(--text-muted)]'
+                      }`}
+                    >
                       {tab.count}
                     </span>
                   )}
                 </button>
               );
             })}
-          </div>
+          </nav>
 
-          {/* Left Section: Action Buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            
-            {/* Language Switcher Button */}
+          {/* End: Focused 4 Controls (Cmd+K Search, Lang, Primary CTA on Desktop, Profile/Settings) */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => {
-                haptic('light');
-                toggleLanguage();
-              }}
-              className="px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all flex items-center gap-1.5 text-xs font-black"
-              title={language === 'fa' ? 'Switch to English' : 'تغییر به فارسی'}
-            >
-              <Languages size={15} className="text-blue-600 dark:text-blue-400" />
-              <span className="uppercase text-[11px] font-bold">{language === 'fa' ? 'EN' : 'فا'}</span>
-            </button>
-
-            {/* Quick Search Button (Always visible) */}
-            <button
+              type="button"
               onClick={() => {
                 haptic('light');
                 onOpenCommandPalette();
               }}
-              className="p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center shrink-0"
+              className="min-h-[40px] px-2.5 sm:px-3 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition-colors flex items-center gap-2 text-xs font-semibold"
               title={`${t('nav.searchKbd')} (⌘K)`}
-              aria-label="Search"
+              aria-label={t('nav.searchKbd')}
             >
-              <Search size={18} className="text-blue-500" />
+              <Search size={16} />
+              <span className="hidden xl:inline">{t('nav.searchKbd')}</span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs rounded-md bg-[var(--card-bg)] border border-[color:var(--border-color)] font-mono">
+                ⌘K
+              </kbd>
             </button>
 
-            {/* Desktop-Only: Gold Bubble Tool */}
             <button
+              type="button"
               onClick={() => {
                 haptic('light');
-                onOpenGoldBubble();
+                toggleLanguage();
               }}
-              className="hidden md:flex p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all"
-              title={t('nav.goldBubble')}
+              className="min-w-[40px] min-h-[40px] px-2.5 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] transition-colors flex items-center justify-center gap-1.5 text-xs font-bold"
+              title={language === 'fa' ? 'Switch to English' : 'تغییر به فارسی'}
             >
-              <Calculator size={18} />
+              <Languages size={15} className="text-[color:var(--text-muted)]" />
+              <span>{language === 'fa' ? 'EN' : 'فا'}</span>
             </button>
 
-            {/* Desktop-Only: Export & Import */}
+            {/* Primary Bullion Gold CTA (Desktop/Tablet — Mobile uses thumb-zone BottomNav center '+') */}
             <button
-              onClick={() => {
-                haptic('light');
-                onOpenExportImport();
-              }}
-              className="hidden md:flex p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all"
-              title={t('nav.exportImport')}
-            >
-              <Download size={18} />
-            </button>
-
-            {/* Desktop-Only: Live Refresh Button */}
-            <button
-              onClick={() => {
-                haptic('medium');
-                onPriceUpdate();
-              }}
-              disabled={isPriceUpdating}
-              className={`hidden md:flex p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all ${
-                isPriceUpdating ? 'opacity-70 cursor-not-allowed' : ''
-              }`}
-              title={t('common.refresh')}
-            >
-              <RefreshCw size={18} className={isPriceUpdating ? "animate-spin text-blue-500" : ""} />
-            </button>
-
-            {/* Add Transaction Button (Compact on mobile, full on desktop) */}
-            <button
+              type="button"
               onClick={() => {
                 haptic('success');
                 onOpenNewTx();
               }}
-              className="flex items-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-md sm:shadow-lg shadow-blue-600/25 active:scale-95 transition-all shrink-0"
-              title={t('nav.newTx')}
+              className="hidden md:inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs shadow-gold active:scale-95 transition-transform shrink-0"
             >
-              <Plus size={16} strokeWidth={3} />
-              <span className="hidden sm:inline">{t('nav.newTx')}</span>
+              <Plus size={16} strokeWidth={2.75} />
+              <span>{t('nav.newTx')}</span>
             </button>
 
-            {/* User Profile & Drawer Trigger (Always visible) */}
+            {/* Profile / Settings Drawer Trigger (Holds Theme, Tools, Admin & Safe Sign-Out) */}
             <button
+              type="button"
               onClick={() => {
                 haptic('light');
                 onOpenSettings();
               }}
-              className="p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all shrink-0"
+              className="min-w-[40px] min-h-[40px] px-2.5 rounded-xl bg-[var(--muted-surface)] hover:bg-[var(--pill-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)] transition-colors flex items-center justify-center gap-1.5 text-xs font-bold shrink-0"
               title={t('nav.settings')}
+              aria-label={t('nav.settings')}
             >
-              <UserCircle size={18} />
+              <UserCircle size={18} className="sm:hidden" />
+              <span className="hidden sm:inline font-mono">{initials}</span>
             </button>
-
-            {/* Desktop-Only: Admin Panel */}
-            {user.isAdmin && onOpenAdmin && (
-              <button
-                onClick={() => {
-                  haptic('light');
-                  onOpenAdmin();
-                }}
-                className="hidden md:flex p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 transition-all shrink-0"
-                title={t('nav.admin')}
-              >
-                <Shield size={18} />
-              </button>
-            )}
-
-            {/* Desktop-Only: Logout */}
-            <button
-              onClick={() => {
-                haptic('error');
-                onLogout();
-              }}
-              className="hidden md:flex p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-all shrink-0"
-              title={t('nav.logout')}
-            >
-              <LogOut size={18} />
-            </button>
-
           </div>
-
         </div>
       </div>
     </header>
   );
 };
+
+export const Navbar = memo(NavbarComponent);

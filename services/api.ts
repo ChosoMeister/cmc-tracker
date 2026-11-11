@@ -248,6 +248,26 @@ export const API = {
     }).catch(() => { });
   },
 
+  saveTransactionsBulk: async (username: string, incoming: Transaction[], mode: 'replace' | 'merge' = 'merge') => {
+    username = username.toLowerCase();
+    const users = getLocalUsers();
+    const user = users.find((u: any) => u.username === username);
+    if (user) {
+      const base = mode === 'replace' ? [] : [...(user.transactions || [])];
+      const byId = new Map(base.map((t: any) => [t.id, t]));
+      incoming.forEach((tx) => {
+        if (tx && tx.id) byId.set(tx.id, tx);
+      });
+      user.transactions = Array.from(byId.values());
+      saveLocalUsers(users);
+    }
+    await withTimeout(`${BASE_URL}/api/transactions/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, transactions: incoming, mode })
+    }, 15000).catch(() => { });
+  },
+
   getPrices: async () => {
     try {
       const res = await withTimeout(`${BASE_URL}/api/prices`, {}, 15000);
